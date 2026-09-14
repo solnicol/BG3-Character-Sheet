@@ -26,8 +26,9 @@ third-party request and keeps working offline:
 
 - [Kalam](https://fonts.google.com/specimen/Kalam) — the character name alone, which is the
   one field a person writes onto the printed form. The family ships Light, Regular and Bold
-  and has no Medium, so Regular is used; its cap height runs about 9% larger than Georgia's,
-  so the point size drops to keep the name at its previous apparent size.
+  and has no Medium, so Regular is used. It is set smaller than the printed name it replaced
+  so it reads as a written line rather than a display heading, and the field's height and the
+  gap between the writing and its rule are pinned so the form does not move around it.
 
 All four are under the SIL Open Font License 1.1, which permits redistribution. The licence
 text for each is committed beside the font files as `OFL-<family>.txt`. Only the Latin subset
