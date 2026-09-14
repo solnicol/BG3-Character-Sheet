@@ -40,7 +40,7 @@ dialog{width:min(620px,calc(100% - 32px));max-height:85dvh;overflow:auto;border:
 
 /* The imported sheet is a reference document; only player name is editable. */
 .imported .remove,.imported #add-class{display:none}.imported .class-row{grid-template-columns:1fr 52px}
-.imported input[readonly],.imported textarea[readonly],.imported select:disabled{color:var(--ink);opacity:1;-webkit-text-fill-color:var(--ink);cursor:default;background:transparent}
+.imported input[readonly],.imported textarea[readonly],.imported select:disabled{color:var(--ink);opacity:1;-webkit-text-fill-color:var(--ink);cursor:default;background:transparent}.imported .ability input[readonly]{background:var(--paper);position:relative;z-index:1}
 .imported textarea[readonly]{resize:none}.imported select:disabled{appearance:none}.imported input:disabled{opacity:1}.imported input[type=checkbox]{appearance:none;border:1px solid var(--muted);border-radius:50%;width:8px;height:8px;margin:0 auto}.imported input[type=checkbox]:checked{background:var(--ink);border-color:var(--ink)}.imported input[type=checkbox]:indeterminate{border-radius:0;background:var(--muted)}
 .imported [data-path="player"]{background:#f4f0e5;border-bottom:1px solid var(--accent)}
 .spellbook-layout{display:grid;grid-template-columns:1.8fr 1fr;gap:16px;align-items:start;margin-bottom:16px}
