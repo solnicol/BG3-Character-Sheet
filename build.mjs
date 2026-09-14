@@ -23,10 +23,11 @@ return {contents,loader:'ts'};
 });}};
 await build({entryPoints:['src/bg3-worker.ts'],outfile:'assets/bg3-worker.js',bundle:true,format:'iife',platform:'browser',target:'es2022',minify:true,plugins:[exposeClassLevels]});
 await build({entryPoints:['src/import-ui.js'],outfile:'assets/bg3-import.js',bundle:true,format:'iife',platform:'browser',target:'es2022',minify:true});
-console.log('Built local save importer and parser worker.');
+await build({entryPoints:['src/analytics.js'],outfile:'assets/analytics.js',bundle:true,format:'iife',platform:'browser',target:'es2022',minify:true});
+console.log('Built local save importer, parser worker, and analytics.');
 
 // Publish only browser assets; never expose source, fixtures or saved sheets.
 await rm('dist', {recursive:true,force:true});
 await mkdir('dist/assets', {recursive:true});
 await copyFile('index.html','dist/index.html');
-for (const name of ['bg3-import.js','bg3-worker.js']) await copyFile('assets/'+name,'dist/assets/'+name);
+for (const name of ['bg3-import.js','bg3-worker.js','analytics.js']) await copyFile('assets/'+name,'dist/assets/'+name);
