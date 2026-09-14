@@ -29,7 +29,7 @@ dialog{width:min(620px,calc(100% - 32px));max-height:85dvh;overflow:auto;border:
  .sheet:nth-of-type(2) .equipment-print::first-line{font-weight:700}
  .sheet:nth-of-type(2) .equipment-panel{height:auto;overflow:visible}
  .sheet:nth-of-type(2) .equipment-panel .equipment-group{break-inside:avoid}
- .sheet:nth-of-type(2) .equipment-panel .equipment-lines{columns:2;column-gap:16px;font-size:9.5px;line-height:15px;max-height:none;overflow:visible}
+ .sheet:nth-of-type(2) 
  .sheet:nth-of-type(2) .textarea-value.tall{min-height:0}
 }
 
@@ -39,14 +39,14 @@ dialog{width:min(620px,calc(100% - 32px));max-height:85dvh;overflow:auto;border:
 .imported textarea[readonly]{resize:none}.imported select:disabled{appearance:none}.imported input:disabled{opacity:1}.imported input[type=checkbox]{appearance:none;border:1px solid var(--muted);border-radius:50%;width:8px;height:8px;margin:0 auto}.imported input[type=checkbox]:checked{background:var(--ink);border-color:var(--ink)}.imported input[type=checkbox]:indeterminate{border-radius:0;background:var(--muted)}
 .imported [data-path="player"]{background:#f4f0e5;border-bottom:1px solid var(--accent)}
 .spellbook-layout{display:grid;grid-template-columns:1.8fr 1fr;gap:16px;align-items:start;margin-bottom:16px}
-.spell-groups{columns:2;column-gap:20px}.spell-groups section{break-inside:avoid;margin-bottom:12px}
+.spell-groups{display:grid;grid-template-columns:1fr 1fr;gap:0 20px;align-items:start}.spell-col{min-width:0}.spell-groups section{break-inside:avoid;margin-bottom:12px}
 .spell-groups h3,.equipment-group h3{text-align:left;border-bottom:1px solid #cfc8b9;padding-bottom:5px;margin-bottom:5px}
 .spell-groups ul,.equipment-group ul{list-style:none;padding:0;margin:0}.spell-groups li{font-size:12px;line-height:1.65;break-inside:avoid}
 .spell-groups li span{font-size:9px}.slots-panel .slots{grid-template-columns:repeat(3,minmax(0,1fr))}.slots-panel .pact-slots{grid-template-columns:1fr}
-.inventory-layout{display:grid;grid-template-columns:1fr 2fr;gap:22px}.equipment-group ul{font:12px/1.6 Georgia,serif}.equipment-group.carried ul{columns:2;column-gap:18px}.equipment-group li{break-inside:avoid;overflow-wrap:anywhere;padding:2px 0}
+.inventory-layout{display:grid;grid-template-columns:1fr 2fr;gap:22px}.equipment-group ul{font:12px/1.6 Georgia,serif}.equipment-group.carried ul{display:grid;grid-template-rows:repeat(var(--rows,1),auto);grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);column-gap:18px}.equipment-group li{break-inside:avoid;overflow-wrap:anywhere;padding:2px 0}
 .equipment-panel>h2{display:flex;justify-content:space-between;text-align:left}.equipment-panel>h2 small{font-size:11px;letter-spacing:.4px;color:var(--accent)}
-@media(max-width:650px){.spellbook-layout,.inventory-layout{grid-template-columns:1fr}.equipment-group.carried ul{columns:2}.spell-summary{gap:8px}}
-@media print{.spellbook-layout{grid-template-columns:1.8fr 1fr;gap:10px;margin-bottom:10px}.inventory-layout{grid-template-columns:1fr 2fr;gap:14px}.spell-groups{column-gap:12px}.spell-groups li{font-size:9px;line-height:1.4}.spell-groups section{margin-bottom:6px}.equipment-group ul{font-size:9px;line-height:1.35}.equipment-group li{padding:1px 0}.spell-panel .legend{margin:0 0 6px}.equipment-group{margin:0}.slots-panel .slots{grid-template-columns:repeat(3,minmax(0,1fr))}.slots-panel .pact-slots{grid-template-columns:1fr}.imported [data-path="player"]{background:transparent}.spell-panel .visually-hidden+.print-value{display:none!important}}
+@media(max-width:650px){.spellbook-layout,.inventory-layout{grid-template-columns:1fr}.equipment-group.carried ul{column-gap:12px}.spell-summary{gap:8px}}
+@media print{.spellbook-layout{grid-template-columns:1.8fr 1fr;gap:10px;margin-bottom:10px}.inventory-layout{grid-template-columns:1fr 2fr;gap:14px}.spell-groups{gap:0 12px}.spell-groups li{font-size:9px;line-height:1.4}.spell-groups section{margin-bottom:6px}.equipment-group ul{font-size:9px;line-height:1.35}.equipment-group li{padding:1px 0}.spell-panel .legend{margin:0 0 6px}.equipment-group{margin:0}.slots-panel .slots{grid-template-columns:repeat(3,minmax(0,1fr))}.slots-panel .pact-slots{grid-template-columns:1fr}.imported [data-path="player"]{background:transparent}.spell-panel .visually-hidden+.print-value{display:none!important}}
 
 </style>
 </head>
@@ -85,11 +85,26 @@ const set=(path,value)=>{const p=path.split('.');const k=p.pop();p.reduce((v,key
 function input(path,label,type='text',extra=''){return `<label class="field"><input data-path="${esc(path)}" type="${type}" value="${esc(get(path))}" ${extra}><span>${label}</span></label>`}
 function select(path,label,options){return `<label class="field"><select data-path="${path}">${options.map(v=>`<option value="${esc(v)}" ${get(path)===v?'selected':''}>${esc((path==='spellAbility'&&v)?ABILITIES[v]:v||'None')}</option>`).join('')}</select><span>${label}</span></label>`}
 function area(path,title,size=''){if(state.importSummary&&!String(get(path)||'').trim())return '';return `<section class="box"><h2>${title}</h2><textarea aria-label="${title}" data-path="${path}" class="lined ${size}" spellcheck="false">${esc(get(path))}</textarea></section>`}
-function equipmentPanel(){const parts=String(state.equipment||'').split(/\n\n(?=[A-Z ]+\n)/);return `<section class="box equipment-panel"><h2>Equipment & inventory <small>${esc(state.gold===''?'':Number(state.gold).toLocaleString('en-GB')+' gold')}</small></h2><div class="inventory-layout">${parts.filter(Boolean).map(p=>{const [head,...rawLines]=p.split('\n');const grouped=new Map();for(const line of rawLines.filter(Boolean)){const match=line.match(/^(?:(\d+) × )?(.*)$/);if(match[2]==='Gold'&&state.gold!=='')continue;grouped.set(match[2],(grouped.get(match[2])||0)+Number(match[1]||1));}const lines=[...grouped].map(([name,count])=>(count>1?count+' × ':'')+name);const label=s=>s.replace('[Breast]','[Armour]').replace('[Melee Main Weapon]','[Main hand]').replace('[Melee Offhand Weapon]','[Off hand]').replace('[Ranged Main Weapon]','[Ranged]').replace('[VanityBody]','[Camp clothes]').replace('[VanityBoots]','[Camp shoes]').replace('[Underwear]','[Underwear]');return `<div class="equipment-group ${head==='EQUIPPED'?'worn':'carried'}"><h3>${esc(head)}</h3><ul>${lines.filter(Boolean).map(l=>`<li>${esc(label(l))}</li>`).join('')}</ul></div>`}).join('')}</div></section>`}
+function equipmentPanel(){const parts=String(state.equipment||'').split(/\n\n(?=[A-Z ]+\n)/);return `<section class="box equipment-panel"><h2>Equipment & inventory <small>${esc(state.gold===''?'':Number(state.gold).toLocaleString('en-GB')+' gold')}</small></h2><div class="inventory-layout">${parts.filter(Boolean).map(p=>{const [head,...rawLines]=p.split('\n');const grouped=new Map();for(const line of rawLines.filter(Boolean)){const match=line.match(/^(?:(\d+) × )?(.*)$/);if(match[2]==='Gold'&&state.gold!=='')continue;grouped.set(match[2],(grouped.get(match[2])||0)+Number(match[1]||1));}const lines=[...grouped].map(([name,count])=>(count>1?count+' × ':'')+name);const label=s=>s.replace('[Breast]','[Armour]').replace('[Melee Main Weapon]','[Main hand]').replace('[Melee Offhand Weapon]','[Off hand]').replace('[Ranged Main Weapon]','[Ranged]').replace('[VanityBody]','[Camp clothes]').replace('[VanityBoots]','[Camp shoes]').replace('[Underwear]','[Underwear]');return `<div class="equipment-group ${head==='EQUIPPED'?'worn':'carried'}"><h3>${esc(head)}</h3><ul style="--rows:${Math.max(1,Math.ceil(lines.filter(Boolean).length/2))}">${lines.filter(Boolean).map(l=>`<li>${esc(label(l))}</li>`).join('')}</ul></div>`}).join('')}</div></section>`}
+// Two balanced columns built in the markup. CSS multi-column is avoided here
+// because WebKit mis-fragments it when printing: Safari laid this panel out at
+// roughly twice its height, spilling the sheet onto a third page, while Chrome
+// printed the same markup on two. Splitting by line count is deterministic and
+// paginates identically in every engine.
+function spellColumns(entries){
+ const weight=e=>e[1].length+2;               // a heading costs about two lines
+ const total=entries.reduce((n,e)=>n+weight(e),0);
+ const cols=[[],[]];let used=0;
+ for(const e of entries){
+  const half=used>=total/2&&cols[0].length?1:0;
+  cols[half].push(e);used+=weight(e);
+ }
+ return cols[1].length?cols:[cols[0]];
+}
 function spellPanel(){
  if(!state.importSummary)return area('spells','Cantrips & spells','tall');
  const groups=new Map();for(const line of state.spells.split('\n').filter(Boolean)){const m=line.match(/^(Cantrip|Level \d+|Spell): (.*?)(?: \[(not prepared|prepared)\])?$/);const key=m?.[1]||'Spells';if(!groups.has(key))groups.set(key,[]);groups.get(key).push({name:m?.[2]||line,prepared:m?.[3]==='prepared'});}
- return `<section class="box spell-panel"><h2>Cantrips & spells</h2><p class="legend">● Prepared or always available</p><div class="spell-groups">${[...groups].map(([name,spells])=>`<section><h3>${esc(name==='Cantrip'?'Cantrips':name)}</h3><ul>${spells.map(s=>`<li><span aria-label="${s.prepared?'Prepared':'Not prepared'}">${s.prepared?'●':'○'}</span> ${esc(s.name)}</li>`).join('')}</ul></section>`).join('')}</div><textarea class="visually-hidden" data-path="spells" aria-label="Spell list" readonly>${esc(state.spells)}</textarea></section>`;
+ return `<section class="box spell-panel"><h2>Cantrips & spells</h2><p class="legend">● Prepared or always available</p><div class="spell-groups">${spellColumns([...groups]).map(col=>`<div class="spell-col">${col.map(([name,spells])=>`<section><h3>${esc(name==='Cantrip'?'Cantrips':name)}</h3><ul>${spells.map(s=>`<li><span aria-label="${s.prepared?'Prepared':'Not prepared'}">${s.prepared?'●':'○'}</span> ${esc(s.name)}</li>`).join('')}</ul></section>`).join('')}</div>`).join('')}</div><textarea class="visually-hidden" data-path="spells" aria-label="Spell list" readonly>${esc(state.spells)}</textarea></section>`;
 }
 function stat(path,label,auto,shape=''){return `<div class="stat ${shape}"><input aria-label="${label}" type="number" step="${path==='speed'?'any':'1'}" data-path="${path}" value="${esc(get(path))}" ${auto?`data-auto="${auto}"`:''}><label>${label}</label></div>`}
 function render(){document.getElementById('app').innerHTML=`

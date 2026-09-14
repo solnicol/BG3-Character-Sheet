@@ -21,7 +21,7 @@ Open http://127.0.0.1:8765/. Import an `.lsv` file, select a character, and save
 - Active conditions are imported from each character's status list. Permanent item and flag statuses are left out; the remainder are transcribed from the game's internal ids, so an unusual status may read a little raw.
 - Experience is shown as progress within the current level, matching the game's own tooltip rather than the cumulative total the save stores. A total that disagrees with its level withholds the remaining figure instead of guessing.
 - Ordinary and pact slots are stored separately. Older JSON backups with `(pact)` values migrate automatically when loaded.
-- PDF export uses the browser print dialogue. Inventory is no longer clipped, but long content can exceed two pages. Turn off browser headers and footers in the dialogue.
+- PDF export uses the browser print dialogue. The spell and inventory lists build their columns in the markup rather than with CSS multi-column, which WebKit mis-fragments when printing: Safari laid the second sheet out at roughly twice its height and spilled it onto a third page, while Chrome printed the same markup on two. Long content can still exceed two pages. Turn off browser headers and footers in the dialogue.
 
 ## Verification
 
