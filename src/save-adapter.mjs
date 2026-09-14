@@ -13,6 +13,25 @@ const amount=n=>Number.isFinite(n)?String(Math.round(n*100)/100):'?';
 const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${i.name||i.stats||'Unresolved item'}${i.slot?' ['+i.slot+']':''}`;
 const groupItems=(name,items)=>items?.length?name+'\n'+items.map(itemLine).join('\n'):'';
 const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
+// Cumulative experience required to reach each level, indexed by level.
+// Verified against a live save rather than taken from a secondary source:
+// Neith is level 4 holding 3542 total XP, and the game's own tooltip reads
+// "Current experience: 842. Remaining experience needed to gain a level:
+// 2958." Level 4 therefore begins at 3542 - 842 = 2700 and level 5 at
+// 2700 + 3800 = 6500. The series ends at exactly 100000, BG3's level 12
+// total, which corroborates the remaining rows.
+// index.html holds an identical copy for live display; a test asserts they
+// stay in step.
+export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
+// Progress through the current level, or null when the totals disagree with
+// the table (a modded XP curve, or a future patch retuning it). A wrong
+// "XP to next level" is worse than none, so callers show nothing instead.
+export function xpProgress(xp,level){
+ if(!integer(xp,0,10000000)||!integer(level,1,12))return null;
+ const floor=XP_LEVELS[level],ceiling=level<12?XP_LEVELS[level+1]:null;
+ if(xp<floor||(ceiling!==null&&xp>=ceiling))return null;
+ return {within:xp-floor,band:ceiling===null?null:ceiling-floor,remaining:ceiling===null?null:ceiling-xp};
+}
 export function characterClasses(c){
  const total=Number(c.level);
  if(!integer(total,1,12))throw Error('This character’s level is unavailable or outside the supported range of 1–12.');
@@ -37,6 +56,11 @@ export function adaptCharacter(report,index,template){
  out.background=text(c.background)||'';
  out.armour=(c.equipment_proficiencies||[]).filter(x=>/Armour|Shield/.test(x)).join('\n');
  out.weapons=(c.equipment_proficiencies||[]).filter(x=>!/Armour|Shield/.test(x)).join('\n');
+ // Experience is stored cumulatively in the save; the game's own UI shows
+ // progress within the current level instead. Keep the save's number and let
+ // the sheet derive the in-level figures from it.
+ out.xp=integer(c.xp,0,10000000)?c.xp:'';
+ if(out.xp!==''&&!xpProgress(out.xp,out.classes.reduce((n,x)=>n+x.level,0)))warnings.push('Experience total '+out.xp+' does not match the expected range for this level, so progress to the next level is not shown.');
  out.hp=integer(c.hp?.current)?c.hp.current:'';out.maxHp=integer(c.hp?.max)?c.hp.max:'';out.tempHp=integer(c.hp?.temp)?c.hp.temp:'';
  if(!c.hp)warnings.push('Hit points were not recovered.');
  const resources=c.resources||[];

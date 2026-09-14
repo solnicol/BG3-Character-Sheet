@@ -23,6 +23,15 @@ Combat contributions implemented:
   is not yet vendored.
 - Duelling and two-weapon fighting: supported base damage adjustments; special weapons and situational effects still need broader game-data coverage.
 
+Experience: saves store a cumulative total, while the game's own UI shows progress within
+the current level. The sheet reports the in-level figures to match what the player sees.
+The level thresholds are 0, 300, 900, 2700, 6500, 13000, 21000, 30000, 42000, 56000, 76000
+and 100000, verified against a save rather than a secondary source: a level 4 character
+holding 3542 cumulative XP is reported in game as 842 earned with 2958 remaining, which
+fixes level 4 at 2700 and level 5 at 6500, and the series ends at exactly 100000. When a
+total falls outside the band its level implies, the remaining figure is withheld rather
+than guessed. `src/save-adapter.mjs` owns the table and a test keeps `index.html` in step.
+
 [Favourable Beginnings](https://bg3.wiki/wiki/Favourable_Beginnings) is conditional on the first attack against a target. It is not silently added to every attack. Full active-status and target-dependent totals are not yet reconstructed. The sheet's attack numbers are supported baseline totals plus recovered toggles, not a promise to match every in-game target tooltip.
 
 UI: imported records are read-only apart from player name. Spells are grouped by level, ordinary and pact resources stay separate, and inventory uses the full width below the spellbook. Browser printing remains the export mechanism; long records may exceed two pages.
