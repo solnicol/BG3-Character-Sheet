@@ -24,10 +24,16 @@ third-party request and keeps working offline:
   stat figures, set with lining tabular numerals because the family's default old-style
   figures read a zero as a letter O.
 
-All three are under the SIL Open Font License 1.1, which permits redistribution. The licence
+- [Kalam](https://fonts.google.com/specimen/Kalam) — the character name alone, which is the
+  one field a person writes onto the printed form. The family ships Light, Regular and Bold
+  and has no Medium, so Regular is used; its cap height runs about 9% larger than Georgia's,
+  so the point size drops to keep the name at its previous apparent size.
+
+All four are under the SIL Open Font License 1.1, which permits redistribution. The licence
 text for each is committed beside the font files as `OFL-<family>.txt`. Only the Latin subset
 and the weights actually used are included.
 
-Body copy stays on Georgia. Every stack keeps its previous family as a fallback, so glyphs a
+Handwriting is confined to that one field: stats, skills, equipment, headings and labels all
+stay in the printed typography. Body copy stays on Georgia. Every stack keeps its previous family as a fallback, so glyphs a
 web font lacks still render.
 
