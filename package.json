@@ -1,0 +1,22 @@
+{
+  "name": "bg3-character-sheet",
+  "version": "1.0.0",
+  "description": "Editable character sheet with local BG3 save import",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "python3 -m http.server 8765 --bind 127.0.0.1",
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node tests/browser-import.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "type": "commonjs",
+  "dependencies": {
+    "fzstd": "0.1.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "playwright": "^1.63.0"
+  },
+  "private": true
+}

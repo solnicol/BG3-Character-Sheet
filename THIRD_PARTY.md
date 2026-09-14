@@ -1,0 +1,13 @@
+# BG3 save parser
+
+The local import worker bundles the TypeScript parser and game-data name table from [danielsamuels/bg3-savefile-parser](https://github.com/danielsamuels/bg3-savefile-parser), pinned to commit `9578ff7c46a1aa40c805f6b7beecf907f10fb3b8`.
+
+The checkout is in `vendor/bg3-savefile-parser`. Its TypeScript source has local modifications; it is not an unchanged upstream checkout. `build.mjs` applies explicit build-time compatibility patches. Name lengths, class levels and resource replenish flags are read as 32-bit fields, excluding the non-zero padding found in the multiplayer save. Resource padding is ignored, while finite amounts and valid ranges are still required. Custom-player names are recovered from complete parallel creation/level-up tables and matched only by unique class builds; positions remain separate for inventory attribution. A further extension exposes each attributed character’s class levels from the already-decoded ECS classes. This avoids guessing multiclass levels from SaveInfo’s total level. The build fails if its source anchor changes.
+
+`src/save-adapter.mjs` translates the report into the character sheet. The parser’s [limitations](https://github.com/danielsamuels/bg3-savefile-parser/blob/9578ff7c46a1aa40c805f6b7beecf907f10fb3b8/LIMITS.md) still apply, including ambiguous hireling builds, some feat attribution and item-name variants. The adapter derives base AC and initiative from the recovered loadout and abilities. Selected proficiencies and background are not inferred from class. Live equipment uses decoded inventory containers, with an upstream fallback for ambiguous owners. Active combat boosts remain incomplete.
+
+Local inventory changes correct the 48-byte heap base for stack tables, stack groups, container tables and owner lists. Container kind is read through DataComponent into the Type pool; equipped and carried membership is determined by containers rather than item names. Stack counts are summed per member, including final records and stacks of one.
+
+No upstream licence file was found in this checkout. Redistribution permission must be established before publishing the vendored parser.
+
+The runtime also bundles `fzstd` 0.1.1 (MIT). esbuild 0.25.12 (MIT) is used only to build the local scripts. Their notices are retained in the installed packages and generated bundle legal comments.

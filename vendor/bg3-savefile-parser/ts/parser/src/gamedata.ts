@@ -1,0 +1,118 @@
+/** Derived game-data maps (data/gamedata.json, built by the Python lab).
+ *  Mirrors bg3parser/gamedata.py's DisplayNames. */
+
+export interface GamedataJson {
+  guid: Record<string, string>;
+  stats: Record<string, string>;
+  spells?: Record<string, string>;
+  spell_levels?: Record<string, number>;
+  passive_names?: Record<string, string>;
+  interrupt_names?: Record<string, string>;
+  object_types?: string[];
+  stats_slots?: Record<string, string>;
+  two_handed?: string[];
+  sub_spells?: string[];
+  quest_names?: Record<string, string>;
+  quest_objectives?: Record<string, string>;
+  action_resources?: Record<string, string>;
+  feat_names?: Record<string, string>;
+  subregions?: Record<string, string>;
+  class_uuid_names?: Record<string, string>;
+}
+
+export class DisplayNames {
+  readonly guid: Record<string, string>;
+  readonly stats: Record<string, string>;
+  readonly spells: Record<string, string>;
+  readonly spellLevels: Record<string, number>;
+  readonly passives: Record<string, string>;
+  readonly interrupts: Record<string, string>;
+  readonly objectTypeStats: Set<string>;
+  readonly statsToSlot: Record<string, string>;
+  readonly twoHandedStats: Set<string>;
+  readonly subSpells: Set<string>;
+  readonly questNames: Record<string, string>;
+  readonly questObjectives: Record<string, string>;
+  readonly actionResources: Record<string, string>;
+  readonly featNames: Record<string, string>;
+  readonly subregions: Record<string, string>;
+  readonly classUuidNames: Record<string, string>;
+
+  constructor(data?: GamedataJson) {
+    this.guid = data?.guid ?? {};
+    this.stats = data?.stats ?? {};
+    this.spells = data?.spells ?? {};
+    this.spellLevels = data?.spell_levels ?? {};
+    this.passives = data?.passive_names ?? {};
+    this.interrupts = data?.interrupt_names ?? {};
+    this.objectTypeStats = new Set(data?.object_types ?? []);
+    this.statsToSlot = data?.stats_slots ?? {};
+    this.twoHandedStats = new Set(data?.two_handed ?? []);
+    this.subSpells = new Set(data?.sub_spells ?? []);
+    this.questNames = data?.quest_names ?? {};
+    this.questObjectives = data?.quest_objectives ?? {};
+    this.actionResources = data?.action_resources ?? {};
+    this.featNames = data?.feat_names ?? {};
+    this.subregions = data?.subregions ?? {};
+    this.classUuidNames = data?.class_uuid_names ?? {};
+  }
+
+  get available(): boolean {
+    return Object.keys(this.guid).length > 0 || Object.keys(this.stats).length > 0;
+  }
+
+  /** Display name for an item, preferring the precise GUID; null if unresolved. */
+  nameFor(stats: string, guid = ''): string | null {
+    if (guid && guid in this.guid) return this.guid[guid]!;
+    return this.stats[stats] ?? null;
+  }
+
+  spellNameFor(spellId: string): string | null {
+    return this.spells[spellId] ?? null;
+  }
+
+  /** Display name for a reaction interrupt ('Interrupt_Riposte' -> 'Riposte'),
+   *  or null if unresolved. */
+  interruptNameFor(interruptId: string): string | null {
+    return this.interrupts[interruptId] ?? null;
+  }
+
+  /** Spell level (0 = cantrip), or null for non-spell abilities. Upcast
+   *  variants (Target_Banishment_5) fall back to the base prototype. */
+  spellLevelFor(spellId: string): number | null {
+    if (spellId in this.spellLevels) return this.spellLevels[spellId]!;
+    const base = spellId.replace(/_\d+$/, '');
+    return this.spellLevels[base] ?? null;
+  }
+
+  /** Display name for an illithid power id: a spell (Shout_TAD_*) or passive
+   *  (TAD_PeaceBreaker -> 'Favourable Beginnings'); null if neither. */
+  powerNameFor(powerId: string): string | null {
+    return this.spells[powerId] ?? this.passives[powerId] ?? null;
+  }
+
+  /** Display name for an action-resource UUID, or null. */
+  resourceNameFor(uuid: string): string | null {
+    return this.actionResources[uuid] ?? null;
+  }
+
+  /** Display name for a feat UUID, or null. */
+  featNameFor(uuid: string): string | null {
+    return this.featNames[uuid] ?? null;
+  }
+
+  /** Display name for a subregion or waypoint id, or null. */
+  subregionNameFor(id: string): string | null {
+    return this.subregions[id] ?? null;
+  }
+
+  /** Journal title for a quest, or null if unresolved. */
+  questNameFor(questId: string): string | null {
+    return this.questNames[questId] ?? null;
+  }
+
+  /** Journal text for an objective, or null if unresolved. */
+  questObjectiveFor(objectiveId: string): string | null {
+    return this.questObjectives[objectiveId] ?? null;
+  }
+}
