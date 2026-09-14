@@ -42,24 +42,39 @@ export function adaptCharacter(report,index,template){
  const resources=c.resources||[];
  const movement=resources.find(r=>r.guid==='d6b2369d-84f0-4ca4-a3a7-62d2d192a185');
  out.speed=movement&&Number.isFinite(movement.max)&&movement.max>=0&&movement.max<=1000?movement.max:'';
- // Reconstruct AC from the live loadout. The parser's armour_class field can
- // be a stale ECS snapshot (for example Bob's save reports 11 while his
- // equipped Spidersilk Armour gives 12 + 1 Dexterity = 13). Keep the saved
- // total only as a fallback when the loadout is not recoverable.
+ // Reconstruct AC from the live loadout. The parser declares armour_class in
+ // its model but never assigns it, so it is retained only as a forward
+ // -compatible fallback and is never the sole basis for a total.
+ //
+ // Body armour and shields are identified by the parser's canonical slot,
+ // which comes from the game's own stats_slots table, rather than guessed
+ // from item names: 'VanityBody' is a cosmetic overlay that must not displace
+ // real 'Breast' armour, and a 'Ring' called "Ring of Mind-Shielding" is not
+ // a shield.
  const wornItems=c.equipped||[];
  const passives=new Set(c.selected_passives||[]);
+ const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale ?Mail/i,14,2],[/Studded/i,12,Infinity],[/Leather/i,11,Infinity],[/Splint/i,17,0],[/Plate/i,18,0],[/Chain ?Mail/i,16,0],[/Chain ?Shirt/i,13,2],[/Ring ?Mail/i,14,0],[/Hide/i,12,2]];
+ const armourFamily=i=>armourBases.find(([pattern])=>pattern.test(`${i.name||''} ${i.stats||''}`));
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
-   const armourItem=wornItems.find(i=>/Body|Breast/i.test(i.slot||''))||wornItems.find(i=>/ARM_|Armor/i.test(i.stats||'')&&!/Helmet|Glove|Boot|Hat/i.test(i.stats||''));
-   const armourText=`${armourItem?.name||''} ${armourItem?.stats||''}`;
-   const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale Mail|ScaleMail/i,14,2],[/Studded Leather|Studded/i,12,Infinity],[/Leather/i,11,Infinity],[/Plate/i,18,0],[/Splint/i,17,0],[/Chain Mail|ChainMail/i,16,0],[/Chain Shirt|ChainShirt/i,13,2],[/Hide/i,12,2],[/Ring Mail|RingMail/i,14,0]];
-   const match=armourBases.find(([pattern])=>pattern.test(armourText));
-   const base=match?match[1]:10, dexCap=match?match[2]:Infinity;
-   const enhancement=Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
-   const shieldItem=wornItems.find(i=>/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`));
+   // Only a genuine body slot counts. Items with no recovered slot are
+   // accepted only when they name a known armour type, so a lute or a
+   // circlet can never be mistaken for a cuirass.
+   const armourItem=wornItems.find(i=>i.slot==='Breast'||i.slot==='Body')||wornItems.find(i=>!i.slot&&armourFamily(i));
+   const match=armourItem?armourFamily(armourItem):null;
+   const shieldItem=wornItems.find(i=>(i.slot==='Shield'||/Offhand/i.test(i.slot||''))&&/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`));
    const shieldBonus=shieldItem?2+Number((shieldItem.name||'').match(/\+(\d+)/)?.[1]||0):0;
-   const derived=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
-   out.ac=match||shieldItem?derived:(Number.isFinite(c.armour_class)?c.armour_class:'');
+   if(armourItem&&!match) {
+     // Armour is worn but its class is unknown to us. Treating it as
+     // unarmoured would silently under-report by up to seven points, so the
+     // sheet reports nothing rather than a number it cannot stand behind.
+     out.ac=Number.isFinite(c.armour_class)?c.armour_class:'';
+     warnings.push('Armour class was not calculated: '+(armourItem.name||armourItem.stats||'the equipped body armour')+' is not a recognised armour type.');
+   } else {
+     const base=match?match[1]:10, dexCap=match?match[2]:Infinity;
+     const enhancement=Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
+     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
+   }
  } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
  out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2):'');
  out.slots=Array(6).fill('');out.pactSlots=Array(6).fill('');

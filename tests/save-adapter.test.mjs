@@ -11,7 +11,10 @@ test('real report imports race, HP, abilities, feats and inventory with derived 
  assert.equal(sheet.race,'Half-Elf');assert.equal(sheet.subrace,'High Half-Elf');assert.deepEqual(sheet.abilities,c.abilities);
  assert.equal(sheet.hp,c.hp.current);assert.equal(sheet.maxHp,c.hp.max);assert.equal(sheet.speed,9);
  assert.equal(sheet.classes[0].level,9);assert.equal(sheet.skills.Perception,-1);assert.equal(sheet.saves.wis,null);
- assert.equal(sheet.ac,14);assert.equal(sheet.initiative,2);assert.match(sheet.features,/War Caster/);
+ // Luminous Armour is not a recognised armour type, so AC is withheld rather
+ // than silently scored as unarmoured. See the regression tests below.
+ assert.equal(sheet.ac,'');assert.match(sheet.importSummary,/Luminous Armour is not a recognised armour type/);
+ assert.equal(sheet.initiative,2);assert.match(sheet.features,/War Caster/);
  assert.match(sheet.equipment,/EQUIPPED/);assert.match(sheet.spells,/Cantrip/);
  assert.doesNotMatch(sheet.resources,/Interrupt_/);
  assert.equal(sheet.story,'');assert.equal(sheet.notes,'');
@@ -100,4 +103,49 @@ test('saved Archery, equipped gloves and All In toggle apply distinct effects',(
 test('AC is derived from the live armour loadout when the saved snapshot is stale',()=>{
  const r=structuredClone(report),c=r.characters[0];c.abilities={str:8,dex:13};c.armour_class=11;c.equipped=[{name:'Spidersilk Armour',slot:'Breast'}];
  assert.equal(adaptCharacter(r,0,blank()).sheet.ac,13);
+});
+
+// Regression tests for the armour class defects found in b744622.
+test('AC uses the real body slot, never a cosmetic VanityBody overlay',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.abilities={str:10,dex:14,con:10,int:10,wis:10,cha:10};
+ c.equipped=[{name:'Comfortable Autumnal Outfit',stats:'ARM_Vanity_Body_Citizen_Purple',slot:'VanityBody'},
+             {name:'Adamantine Splint Armour',stats:'MAG_OnDamage_SplintMail',slot:'Breast'}];
+ // Splint is heavy: base 17 and no Dexterity, not 10 + 2 from the outfit.
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,17);
+});
+test('only a shield in a shield or offhand slot adds the shield bonus',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.abilities={str:10,dex:14,con:10,int:10,wis:10,cha:10};
+ c.equipped=[{name:'Leather Armour',stats:'ARM_Leather',slot:'Breast'},
+             {name:'Ring of Mind-Shielding',stats:'UNI_UND_RingOfMindShielding',slot:'Ring'}];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,13);
+ c.equipped.push({name:'Shield of Devotion',stats:'MAG_BG_OfDevotion_Shield',slot:'Melee Offhand Weapon'});
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,15);
+});
+test('unrecognised body armour withholds AC and explains why',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.abilities={str:10,dex:14,con:10,int:10,wis:10,cha:10};
+ c.equipped=[{name:'Luminous Armour',stats:'MAG_Radiant_RadiatingOrb_Armor',slot:'Breast'}];
+ const s=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(s.ac,'');
+ assert.match(s.importSummary,/Luminous Armour is not a recognised armour type/);
+});
+test('a genuinely unarmoured character still gets a calculated AC',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.abilities={str:10,dex:16,con:10,int:10,wis:10,cha:10};
+ c.equipped=[{name:'Gloves of Thievery',stats:'MAG_PHB_OfThievery_Gloves',slot:'Gloves'}];
+ const s=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(s.ac,13);
+ assert.doesNotMatch(s.importSummary,/not a recognised armour type/);
+});
+test('accessories are never mistaken for body armour',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.abilities={str:10,dex:14,con:10,int:10,wis:10,cha:10};
+ c.equipped=[{name:'Lute',stats:'ARM_Instrument_Lute',slot:'MusicalInstrument'},
+             {name:'Circlet of Blasting',stats:'ARM_CircletOfBlasting',slot:'Helmet'},
+             {name:'Leather Boots',stats:'ARM_Boots_Leather',slot:'Boots'}];
+ const s=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(s.ac,12);
+ assert.doesNotMatch(s.importSummary,/not a recognised armour type/);
+});
+test('the unpopulated armour_class field is never the sole basis for a total',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.abilities={str:10,dex:14,con:10,int:10,wis:10,cha:10};
+ c.armour_class=11;c.equipped=[{name:'Breastplate',stats:'ARM_Breastplate',slot:'Breast'}];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,16);
 });
