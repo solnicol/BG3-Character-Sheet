@@ -18,8 +18,10 @@ Open http://127.0.0.1:8765/. Import an `.lsv` file, select a character, and save
 - Gold uses per-entity stack records with corrected heap offsets. Changed stack bytes are regression-tested; no character-specific values are substituted. Missing attribution leaves gold blank.
 - Saved level-up skill selections, expertise, backgrounds and fighting styles are decoded where the build can be uniquely matched. Starting-class saving throws and supported background/racial proficiency grants are applied. Additional feat and temporary-effect grants remain incomplete; see MECHANICS.md.
 - Armour and weapon calculations describe base properties; active boosts, conditional effects and some special items require further decoding. Armour class is derived from equipped body armour and shields; unrecognised armour leaves it blank with a warning rather than showing a wrong total.
+- Active conditions are imported from each character's status list. Permanent item and flag statuses are left out; the remainder are transcribed from the game's internal ids, so an unusual status may read a little raw.
+- Experience is shown as progress within the current level, matching the game's own tooltip rather than the cumulative total the save stores. A total that disagrees with its level withholds the remaining figure instead of guessing.
 - Ordinary and pact slots are stored separately. Older JSON backups with `(pact)` values migrate automatically when loaded.
-- PDF export uses the browser print dialogue. Inventory is no longer clipped, but long content can exceed two pages. Turn off browser headers and footers in the dialogue.
+- PDF export uses the browser print dialogue. The spell and inventory lists build their columns in the markup rather than with CSS multi-column, which WebKit mis-fragments when printing: Safari laid the second sheet out at roughly twice its height and spilled it onto a third page, while Chrome printed the same markup on two. Long content can still exceed two pages. Turn off browser headers and footers in the dialogue.
 
 ## Verification
 

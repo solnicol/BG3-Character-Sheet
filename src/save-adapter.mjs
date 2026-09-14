@@ -13,6 +13,48 @@ const amount=n=>Number.isFinite(n)?String(Math.round(n*100)/100):'?';
 const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${i.name||i.stats||'Unresolved item'}${i.slot?' ['+i.slot+']':''}`;
 const groupItems=(name,items)=>items?.length?name+'\n'+items.map(itemLine).join('\n'):'';
 const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
+// Larian's status ids are screaming snake case with a source prefix
+// (MAG_ for an item or spell effect, TAD_ for tadpole powers) and sometimes a
+// trailing engine qualifier. There is no display-name table in the vendored
+// game data, so the id is cleaned and title cased. This is a transcription of
+// the id, not a lookup: an unusual status may read a little raw.
+const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA)_/;
+const STATUS_QUALIFIER=/_(HIDDEN|TECHNICAL|APPLIER|STARTER|IGNORE_RESTING|DISPLAY|VFX|SFX)(?=_|$)/g;
+export function statusName(id){
+ const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'').replace(/_+/g,'_').replace(/^_|_$/g,'');
+ return core?core.split('_').map(w=>w[0]+w.slice(1).toLowerCase()).join(' '):'';
+}
+// Only the non-permanent entries reach the sheet; the permanent ones are the
+// item auras and carried-object flags the game's own panel leaves out.
+export function activeConditions(statuses){
+ const seen=new Set(),out=[];
+ for(const s of statuses||[]){
+  if(!s||s.permanent)continue;
+  const name=statusName(s.id);
+  if(!name||seen.has(name))continue;
+  seen.add(name);out.push(name);
+ }
+ return out;
+}
+// Cumulative experience required to reach each level, indexed by level.
+// Verified against a live save rather than taken from a secondary source:
+// Neith is level 4 holding 3542 total XP, and the game's own tooltip reads
+// "Current experience: 842. Remaining experience needed to gain a level:
+// 2958." Level 4 therefore begins at 3542 - 842 = 2700 and level 5 at
+// 2700 + 3800 = 6500. The series ends at exactly 100000, BG3's level 12
+// total, which corroborates the remaining rows.
+// index.html holds an identical copy for live display; a test asserts they
+// stay in step.
+export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
+// Progress through the current level, or null when the totals disagree with
+// the table (a modded XP curve, or a future patch retuning it). A wrong
+// "XP to next level" is worse than none, so callers show nothing instead.
+export function xpProgress(xp,level){
+ if(!integer(xp,0,10000000)||!integer(level,1,12))return null;
+ const floor=XP_LEVELS[level],ceiling=level<12?XP_LEVELS[level+1]:null;
+ if(xp<floor||(ceiling!==null&&xp>=ceiling))return null;
+ return {within:xp-floor,band:ceiling===null?null:ceiling-floor,remaining:ceiling===null?null:ceiling-xp};
+}
 export function characterClasses(c){
  const total=Number(c.level);
  if(!integer(total,1,12))throw Error('This character’s level is unavailable or outside the supported range of 1–12.');
@@ -37,6 +79,11 @@ export function adaptCharacter(report,index,template){
  out.background=text(c.background)||'';
  out.armour=(c.equipment_proficiencies||[]).filter(x=>/Armour|Shield/.test(x)).join('\n');
  out.weapons=(c.equipment_proficiencies||[]).filter(x=>!/Armour|Shield/.test(x)).join('\n');
+ // Experience is stored cumulatively in the save; the game's own UI shows
+ // progress within the current level instead. Keep the save's number and let
+ // the sheet derive the in-level figures from it.
+ out.xp=integer(c.xp,0,10000000)?c.xp:'';
+ if(out.xp!==''&&!xpProgress(out.xp,out.classes.reduce((n,x)=>n+x.level,0)))warnings.push('Experience total '+out.xp+' does not match the expected range for this level, so progress to the next level is not shown.');
  out.hp=integer(c.hp?.current)?c.hp.current:'';out.maxHp=integer(c.hp?.max)?c.hp.max:'';out.tempHp=integer(c.hp?.temp)?c.hp.temp:'';
  if(!c.hp)warnings.push('Hit points were not recovered.');
  const resources=c.resources||[];
@@ -53,7 +100,7 @@ export function adaptCharacter(report,index,template){
  // a shield.
  const wornItems=c.equipped||[];
  const passives=new Set(c.selected_passives||[]);
- const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale ?Mail/i,14,2],[/Studded/i,12,Infinity],[/Leather/i,11,Infinity],[/Splint/i,17,0],[/Plate/i,18,0],[/Chain ?Mail/i,16,0],[/Chain ?Shirt/i,13,2],[/Ring ?Mail/i,14,0],[/Hide/i,12,2]];
+ const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale ?Mail/i,14,2],[/Studded/i,12,Infinity],[/Padded/i,11,Infinity],[/Leather/i,11,Infinity],[/Splint/i,17,0],[/Plate/i,18,0],[/Chain ?Mail/i,16,0],[/Chain ?Shirt/i,13,2],[/Ring ?Mail/i,14,0],[/Hide/i,12,2]];
  const armourFamily=i=>armourBases.find(([pattern])=>pattern.test(`${i.name||''} ${i.stats||''}`));
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
@@ -146,7 +193,7 @@ export function adaptCharacter(report,index,template){
  out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',c.reactions?.length?'\n\nReactions\n'+c.reactions.join('\n'):''].join('');
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
- out.conditions=c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):'';
+ out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');
  if(c.equipment_note)warnings.push('Equipment: '+c.equipment_note+'.');
