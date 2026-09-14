@@ -97,3 +97,7 @@ test('saved Archery, equipped gloves and All In toggle apply distinct effects',(
  c.passive_toggles.Sharpshooter_AllIn=true;
  assert.match(adaptCharacter(r,0,blank()).sheet.attacks,/\+3 to hit, 1d10 \+16 piercing/);
 });
+test('AC is derived from the live armour loadout when the saved snapshot is stale',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.abilities={str:8,dex:13};c.armour_class=11;c.equipped=[{name:'Spidersilk Armour',slot:'Breast'}];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,13);
+});

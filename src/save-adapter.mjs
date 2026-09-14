@@ -42,11 +42,13 @@ export function adaptCharacter(report,index,template){
  const resources=c.resources||[];
  const movement=resources.find(r=>r.guid==='d6b2369d-84f0-4ca4-a3a7-62d2d192a185');
  out.speed=movement&&Number.isFinite(movement.max)&&movement.max>=0&&movement.max<=1000?movement.max:'';
- // Use explicit totals when available; otherwise calculate base armour only.
+ // Reconstruct AC from the live loadout. The parser's armour_class field can
+ // be a stale ECS snapshot (for example Bob's save reports 11 while his
+ // equipped Spidersilk Armour gives 12 + 1 Dexterity = 13). Keep the saved
+ // total only as a fallback when the loadout is not recoverable.
  const wornItems=c.equipped||[];
  const passives=new Set(c.selected_passives||[]);
- if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
- else if(Number.isInteger(out.abilities.dex)) {
+ if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
    const armourItem=wornItems.find(i=>/Body|Breast/i.test(i.slot||''))||wornItems.find(i=>/ARM_|Armor/i.test(i.stats||'')&&!/Helmet|Glove|Boot|Hat/i.test(i.stats||''));
    const armourText=`${armourItem?.name||''} ${armourItem?.stats||''}`;
@@ -56,8 +58,9 @@ export function adaptCharacter(report,index,template){
    const enhancement=Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
    const shieldItem=wornItems.find(i=>/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`));
    const shieldBonus=shieldItem?2+Number((shieldItem.name||'').match(/\+(\d+)/)?.[1]||0):0;
-   out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
- }
+   const derived=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
+   out.ac=match||shieldItem?derived:(Number.isFinite(c.armour_class)?c.armour_class:'');
+ } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
  out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2):'');
  out.slots=Array(6).fill('');out.pactSlots=Array(6).fill('');
  for(const r of resources){if(r.guid==='d136c5d9-0ff0-43da-acce-a74a07f8d6bf'&&integer(r.level,1,6))out.slots[r.level-1]=amount(r.current)+' / '+amount(r.max)}
