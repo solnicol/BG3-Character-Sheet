@@ -13,6 +13,29 @@ const amount=n=>Number.isFinite(n)?String(Math.round(n*100)/100):'?';
 const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${i.name||i.stats||'Unresolved item'}${i.slot?' ['+i.slot+']':''}`;
 const groupItems=(name,items)=>items?.length?name+'\n'+items.map(itemLine).join('\n'):'';
 const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
+// Larian's status ids are screaming snake case with a source prefix
+// (MAG_ for an item or spell effect, TAD_ for tadpole powers) and sometimes a
+// trailing engine qualifier. There is no display-name table in the vendored
+// game data, so the id is cleaned and title cased. This is a transcription of
+// the id, not a lookup: an unusual status may read a little raw.
+const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA)_/;
+const STATUS_QUALIFIER=/_(HIDDEN|TECHNICAL|APPLIER|STARTER|IGNORE_RESTING|DISPLAY|VFX|SFX)(?=_|$)/g;
+export function statusName(id){
+ const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'').replace(/_+/g,'_').replace(/^_|_$/g,'');
+ return core?core.split('_').map(w=>w[0]+w.slice(1).toLowerCase()).join(' '):'';
+}
+// Only the non-permanent entries reach the sheet; the permanent ones are the
+// item auras and carried-object flags the game's own panel leaves out.
+export function activeConditions(statuses){
+ const seen=new Set(),out=[];
+ for(const s of statuses||[]){
+  if(!s||s.permanent)continue;
+  const name=statusName(s.id);
+  if(!name||seen.has(name))continue;
+  seen.add(name);out.push(name);
+ }
+ return out;
+}
 // Cumulative experience required to reach each level, indexed by level.
 // Verified against a live save rather than taken from a secondary source:
 // Neith is level 4 holding 3542 total XP, and the game's own tooltip reads
@@ -170,7 +193,7 @@ export function adaptCharacter(report,index,template){
  out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',c.reactions?.length?'\n\nReactions\n'+c.reactions.join('\n'):''].join('');
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
- out.conditions=c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):'';
+ out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');
  if(c.equipment_note)warnings.push('Equipment: '+c.equipment_note+'.');

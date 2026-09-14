@@ -23,6 +23,18 @@ Combat contributions implemented:
   is not yet vendored.
 - Duelling and two-weapon fighting: supported base damage adjustments; special weapons and situational effects still need broader game-data coverage.
 
+Conditions: active statuses are read from each character's own `StatusManager` node, the
+same anchor the parser uses to attribute worn items, so they are never borrowed from a
+neighbouring character. `LifeTime` separates the two kinds the save holds: timed statuses
+are what the game lists under Conditions, while permanent ones (-1) are the bookkeeping its
+panel never shows — item auras, surface effects, carried-object flags and `_TECHNICAL`
+appliers. Only the timed ones reach the sheet. There is no status display-name table in the
+vendored game data, so ids are transcribed rather than looked up: the source prefix and
+engine qualifiers are stripped and the rest title cased, which gives `MAG_AID` as "Aid" and
+`MAG_SEE_INVISIBILITY_HIDDEN_IGNORE_RESTING` as "See Invisibility". An unusual status may
+therefore read a little raw, and the sheet does not reproduce the game's own curation of
+which timed statuses are worth showing.
+
 Experience: saves store a cumulative total, while the game's own UI shows progress within
 the current level. The sheet reports the in-level figures to match what the player sees.
 The level thresholds are 0, 300, 900, 2700, 6500, 13000, 21000, 30000, 42000, 56000, 76000

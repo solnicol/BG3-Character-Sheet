@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS} from '../src/save-adapter.mjs';
+import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions} from '../src/save-adapter.mjs';
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
@@ -200,4 +200,34 @@ test('padded armour is light armour keeping the full Dexterity modifier',()=>{
  const s=adaptCharacter(r,0,blank()).sheet;
  assert.equal(s.ac,14);
  assert.doesNotMatch(s.importSummary,/not a recognised armour type/);
+});
+
+// Active conditions. Ground truth from a save whose panel showed exactly
+// "See Invisibility" and "Aid" for this character.
+test('status ids are transcribed the way the game presents them',()=>{
+ assert.equal(statusName('MAG_AID'),'Aid');
+ assert.equal(statusName('MAG_SEE_INVISIBILITY_HIDDEN_IGNORE_RESTING'),'See Invisibility');
+ assert.equal(statusName('EXPEDITIOUS_RETREAT'),'Expeditious Retreat');
+ assert.equal(statusName(''),'');
+});
+test('permanent item and flag statuses stay off the sheet',()=>{
+ const raw=[{id:'MAG_GOB_PRIEST_AMULET_TECHNICAL',permanent:true},{id:'MAG_SEE_INVISIBILITY_HIDDEN_IGNORE_RESTING',permanent:false},
+            {id:'HAS_SHOVEL',permanent:true},{id:'MAG_AID',permanent:false}];
+ assert.deepEqual(activeConditions(raw),['See Invisibility','Aid']);
+ assert.deepEqual(activeConditions([]),[]);
+ assert.deepEqual(activeConditions(undefined),[]);
+});
+test('the same condition from two sources is listed once',()=>{
+ assert.deepEqual(activeConditions([{id:'MAG_AID',permanent:false},{id:'AID',permanent:false}]),['Aid']);
+});
+test('conditions reach the sheet alongside concentration',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.statuses=[{id:'MAG_AID',permanent:false},{id:'HAS_SHOVEL',permanent:true}];
+ c.concentration={name:'Bless'};
+ assert.equal(adaptCharacter(r,0,blank()).sheet.conditions,'Aid\nConcentrating: Bless');
+});
+test('a character with no statuses keeps the conditions box empty',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ delete c.statuses;c.concentration=null;
+ assert.equal(adaptCharacter(r,0,blank()).sheet.conditions,'');
 });
