@@ -1,5 +1,5 @@
 import {build} from 'esbuild';
-import {readFile, mkdir, copyFile, rm} from 'node:fs/promises';
+import {readFile, mkdir, copyFile, rm, readdir} from 'node:fs/promises';
 // Expose class levels on the SAME entity the upstream parser attributes to a
 // character. SaveInfo contains total level only; dividing it would invent data.
 export const exposeClassLevels={name:'expose-class-levels',setup(b){b.onLoad({filter:/[\\/](model|lsmf)\.ts$/},async({path})=>{
@@ -31,3 +31,7 @@ await rm('dist', {recursive:true,force:true});
 await mkdir('dist/assets', {recursive:true});
 await copyFile('index.html','dist/index.html');
 for (const name of ['bg3-import.js','bg3-worker.js','analytics.js']) await copyFile('assets/'+name,'dist/assets/'+name);
+// Self-hosted fonts, with their licences, so the sheet needs no third-party
+// request and keeps working offline.
+await mkdir('dist/assets/fonts', {recursive:true});
+for (const name of await readdir('assets/fonts')) await copyFile('assets/fonts/'+name,'dist/assets/fonts/'+name);
