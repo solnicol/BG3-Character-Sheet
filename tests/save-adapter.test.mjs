@@ -190,3 +190,14 @@ test('a missing experience total stays blank without a warning',()=>{
  assert.equal(s.xp,'');
  assert.doesNotMatch(s.importSummary,/does not match the expected range/);
 });
+
+test('padded armour is light armour keeping the full Dexterity modifier',()=>{
+ // Astarion's starter kit in a real save: UNI_Astarion_StarterArmor, Dex 17.
+ const r=structuredClone(report),c=r.characters[0];
+ c.abilities={str:10,dex:17,con:10,int:10,wis:10,cha:10};
+ c.equipped=[{name:"Astarion's Eccentric Clothes",stats:'ARM_Camp_Body_Astarion',slot:'VanityBody'},
+             {name:'Padded Armour',stats:'UNI_Astarion_StarterArmor',slot:'Breast'}];
+ const s=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(s.ac,14);
+ assert.doesNotMatch(s.importSummary,/not a recognised armour type/);
+});
