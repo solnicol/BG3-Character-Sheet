@@ -11,3 +11,30 @@ Local inventory changes correct the 48-byte heap base for stack tables, stack gr
 No upstream licence file was found in this checkout. Redistribution permission must be established before publishing the vendored parser.
 
 The runtime also bundles `fzstd` 0.1.1 (MIT). esbuild 0.25.12 (MIT) is used only to build the local scripts. Their notices are retained in the installed packages and generated bundle legal comments.
+
+# Fonts
+
+Three open-licensed families are self-hosted in `assets/fonts`, so the sheet makes no
+third-party request and keeps working offline:
+
+- [Yeseva One](https://fonts.google.com/specimen/Yeseva+One) — the sheet masthead only.
+- [Alegreya SC](https://fonts.google.com/specimen/Alegreya+SC) — section headings; it has
+  genuine small capitals rather than synthesised ones.
+- [Alegreya Sans](https://fonts.google.com/specimen/Alegreya+Sans) — small labels and the
+  stat figures, set with lining tabular numerals because the family's default old-style
+  figures read a zero as a letter O.
+
+- [Kalam](https://fonts.google.com/specimen/Kalam) — the character name alone, which is the
+  one field a person writes onto the printed form. The family ships Light, Regular and Bold
+  and has no Medium, so Regular is used. It is set smaller than the printed name it replaced
+  so it reads as a written line rather than a display heading, and the field's height and the
+  gap between the writing and its rule are pinned so the form does not move around it.
+
+All four are under the SIL Open Font License 1.1, which permits redistribution. The licence
+text for each is committed beside the font files as `OFL-<family>.txt`. Only the Latin subset
+and the weights actually used are included.
+
+Handwriting is confined to that one field: stats, skills, equipment, headings and labels all
+stay in the printed typography. Body copy stays on Georgia. Every stack keeps its previous family as a fallback, so glyphs a
+web font lacks still render.
+
