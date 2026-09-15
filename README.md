@@ -12,6 +12,8 @@ npm start
 
 Open http://127.0.0.1:8765/. Import an `.lsv` file, select a character, and save a JSON backup. Saves are parsed in a browser worker and are not uploaded. Use a trusted static host when deploying.
 
+Deployments on Vercel record page views through Vercel Web Analytics. It counts visits only: nothing about an imported save is sent, and it is inert outside Vercel, so the local preview reports nothing.
+
 ## Current limitations
 
 - Live inventory containers determine equipped and carried items when a character owner can be identified. Nested bags are traversed without duplication. Unsupported or ambiguous ownership falls back to upstream attribution.
