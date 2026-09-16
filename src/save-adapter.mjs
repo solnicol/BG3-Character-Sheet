@@ -45,6 +45,20 @@ export function activeConditions(statuses){
 // total, which corroborates the remaining rows.
 // index.html holds an identical copy for live display; a test asserts they
 // stay in step.
+// Dexterity contribution allowed by each armour category.
+const DEX_CAP={light:Infinity,medium:2,heavy:0};
+// Named magic armour whose display name and stats ID carry no family word.
+// gamedata.json cannot settle these: it holds names, slots and rarity but no
+// armour-class data at all. Each entry is keyed on the stats ID, which is
+// stable across saves and localisations where a display name is not, and its
+// class is the item's finished number, enchantment included.
+//
+// Luminous Armour: medium, class 15, Dexterity capped at +2, per its stat
+// block on bg3.wiki. The rarity there agrees with the Uncommon that
+// gamedata.json records for this stats ID.
+export const NAMED_ARMOUR=new Map([
+ ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
+]);
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
 // Progress through the current level, or null when the totals disagree with
 // the table (a modded XP curve, or a future patch retuning it). A wrong
@@ -101,7 +115,12 @@ export function adaptCharacter(report,index,template){
  const wornItems=c.equipped||[];
  const passives=new Set(c.selected_passives||[]);
  const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale ?Mail/i,14,2],[/Studded/i,12,Infinity],[/Padded/i,11,Infinity],[/Leather/i,11,Infinity],[/Splint/i,17,0],[/Plate/i,18,0],[/Chain ?Mail/i,16,0],[/Chain ?Shirt/i,13,2],[/Ring ?Mail/i,14,0],[/Hide/i,12,2]];
- const armourFamily=i=>armourBases.find(([pattern])=>pattern.test(`${i.name||''} ${i.stats||''}`));
+ const armourFamily=i=>{
+   const named=NAMED_ARMOUR.get(i.stats);
+   if(named)return {base:named.ac,dexCap:DEX_CAP[named.type],named};
+   const row=armourBases.find(([pattern])=>pattern.test(`${i.name||''} ${i.stats||''}`));
+   return row?{base:row[1],dexCap:row[2],named:null}:null;
+ };
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
    // Only a genuine body slot counts. Items with no recovered slot are
@@ -118,9 +137,14 @@ export function adaptCharacter(report,index,template){
      out.ac=Number.isFinite(c.armour_class)?c.armour_class:'';
      warnings.push('Armour class was not calculated: '+(armourItem.name||armourItem.stats||'the equipped body armour')+' is not a recognised armour type.');
    } else {
-     const base=match?match[1]:10, dexCap=match?match[2]:Infinity;
-     const enhancement=Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
+     const base=match?match.base:10, dexCap=match?match.dexCap:Infinity;
+     // A looked-up class is the item's finished number, so a +N is only read
+     // off the display name of armour recognised by family.
+     const enhancement=match?.named?0:Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
      out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
+     // Say so when a number rests on a published stat block rather than on the
+     // parser's own data, so it can be checked against the game.
+     if(match?.named)warnings.push('Armour class uses a published value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
    }
  } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
  out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2):'');
