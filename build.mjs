@@ -4,7 +4,19 @@ import {readFile, mkdir, copyFile, rm, readdir} from 'node:fs/promises';
 // character. SaveInfo contains total level only; dividing it would invent data.
 export const exposeClassLevels={name:'expose-class-levels',setup(b){b.onLoad({filter:/[\\/](model|lsmf)\.ts$/},async({path})=>{
 let contents=await readFile(path,'utf8');
-if(path.endsWith('lsmf.ts'))return {contents:contents.replace('const nameLen = u64(dv, base + 8);','const nameLen = dv.getUint32(base + 8, true);').replace('const lvl = u64(dv, base + 32);','const lvl = dv.getUint32(base + 32, true);').replace('const replenish = u64(dv, q + 40);','const replenish = dv.getUint32(q + 40, true);').replace('pad !== 0 || lvl < 0', '!Number.isFinite(amount) || !Number.isFinite(max) || lvl < 0').replace('      pad === 0 &&\n',''),loader:'ts'};
+if(path.endsWith('lsmf.ts')){
+// Ownerlist record offsets are heap-relative, like every other pointer in the
+// blob, so they need the same 48-byte base the rest of the reader applies.
+// Read raw, a list starts 12 entries early: it opens with the tail of the
+// previous component's list and loses its own last twelve entities. Those are
+// the highest rows, which is where a multiplayer save puts its custom players,
+// so their ability scores had no owner to attach to.
+const ownerAnchor='    const view = new Uint8Array(bytes.buffer, bytes.byteOffset + start, ec * 4).slice();';
+if(!contents.includes(ownerAnchor))throw Error('Parser changed: review the ownerlist base correction before rebuilding.');
+contents=contents.replace(ownerAnchor,`    const ownerBase = bytes.byteOffset + start + LSMF_HEAP_BASE;
+    if (ownerBase + ec * 4 > bytes.byteOffset + bytes.byteLength) continue;
+    const view = new Uint8Array(bytes.buffer, ownerBase, ec * 4).slice();`);
+return {contents:contents.replace('const nameLen = u64(dv, base + 8);','const nameLen = dv.getUint32(base + 8, true);').replace('const lvl = u64(dv, base + 32);','const lvl = dv.getUint32(base + 32, true);').replace('const replenish = u64(dv, q + 40);','const replenish = dv.getUint32(q + 40, true);').replace('pad !== 0 || lvl < 0', '!Number.isFinite(amount) || !Number.isFinite(max) || lvl < 0').replace('      pad === 0 &&\n',''),loader:'ts'};}
 contents="import {recoverPlayerNames} from '../../../../../src/multiplayer';\n"+"import {collectStatuses} from '../../../../../src/statuses';\n"+contents;
 contents=contents.replace("const partyNodes = findPartyCharacterNodes(nodes0, playerDisplayName);", `const customPlayers=partyInfo.filter(ci=>PLAYER_ORIGINS.has(ci.Origin ?? 'Generic'));
   const recoveredNames=recoverPlayerNames(nodes0,partyInfo,dn);
