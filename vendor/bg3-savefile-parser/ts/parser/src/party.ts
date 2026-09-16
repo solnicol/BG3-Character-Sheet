@@ -158,7 +158,16 @@ export function findCharacterNodeAt(
     for (const c of nodes[ni]!.children) walk(c);
   };
   for (const c of nodes[charsRoot]!.children) walk(c);
-  return found.length === 1 ? found[0]! : null;
+  if (found.length === 1) return found[0]!;
+  // A creature can stand on the very tile a player occupies, and in an
+  // extended party that happens often enough to cost a character its node.
+  // Only a player-controlled character carries a PlayerData child, and this
+  // lookup is asked for nothing but custom players, so that settles which of
+  // the rivals is wanted. Two players on one tile stay ambiguous.
+  const players = found.filter((ni) =>
+    nodes[ni]!.children.some((ci) => nodes[ci]!.name === 'PlayerData'),
+  );
+  return players.length === 1 ? players[0]! : null;
 }
 
 export function collectStatusEquippedItems(
