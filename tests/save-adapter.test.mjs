@@ -11,10 +11,10 @@ test('real report imports race, HP, abilities, feats and inventory with derived 
  assert.equal(sheet.race,'Half-Elf');assert.equal(sheet.subrace,'High Half-Elf');assert.deepEqual(sheet.abilities,c.abilities);
  assert.equal(sheet.hp,c.hp.current);assert.equal(sheet.maxHp,c.hp.max);assert.equal(sheet.speed,9);
  assert.equal(sheet.classes[0].level,9);assert.equal(sheet.skills.Perception,-1);assert.equal(sheet.saves.wis,null);
- // Luminous Armour carries no family word, so its class comes from the
- // transcribed lookup: heavy armour ignores Dex, and the Shield of Devotion
- // in her offhand adds two. The summary says the number was transcribed.
- assert.equal(sheet.ac,21);assert.match(sheet.importSummary,/transcribed value for Luminous Armour/);
+ // Luminous Armour carries no family word, so its class comes from the named
+ // lookup: 15, plus her +2 Dexterity at the medium cap, plus two for the
+ // Shield of Devotion in her offhand. The summary names the published source.
+ assert.equal(sheet.ac,19);assert.match(sheet.importSummary,/published value for Luminous Armour/);
  assert.equal(sheet.initiative,2);assert.match(sheet.features,/War Caster/);
  assert.match(sheet.equipment,/EQUIPPED/);assert.match(sheet.spells,/Cantrip/);
  assert.doesNotMatch(sheet.resources,/Interrupt_/);
@@ -31,11 +31,12 @@ test('multiclass requires recovered individual levels; never divides a total',()
 test('does not mix data from the previous sheet',()=>{const template=blank();const a=adaptCharacter(report,0,template).sheet;const b=adaptCharacter(report,2,template).sheet;assert.notEqual(a.name,b.name);assert.equal(template.name,'Tav');});
 test('enhanced medium armour contributes its item bonus to AC',()=>{const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');r.characters[i].equipped=[{stats:'ARM_ScaleMail_Body_1',name:'Scale Mail +1',slot:'Body',count:1}];const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,17);});
 test('breastplate plus shield includes the enhancement and shield bonus',()=>{const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');r.characters[i].abilities.dex=14;r.characters[i].equipped=[{stats:'ARM_Breastplate_Body_1',name:'Breastplate +1',slot:'Body',count:1},{stats:'MAG_Safeguard_Shield',name:'Safeguard Shield',slot:'Shield',count:1}];const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,19);});
-test('transcribed armour ignores Dexterity when it is heavy and is not double-counted',()=>{
+test('a named armour caps Dexterity at its own category and adds no phantom enchantment',()=>{
  const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');
  r.characters[i].abilities.dex=20;
  r.characters[i].equipped=[{stats:'MAG_Radiant_RadiatingOrb_Armor',name:'Luminous Armour',slot:'Breast',count:1}];
- const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,19);
+ // +5 Dexterity, but medium armour allows only +2, and 15 is already final.
+ const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,17);
 });
 test('named light armour is included in the shared AC calculation',()=>{const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');r.characters[i].abilities.dex=13;r.characters[i].equipped=[{stats:'GOB_DrowCommander_Leather_Armor',name:'Spidersilk Armour',slot:'Body',count:1}];const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,13);});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});

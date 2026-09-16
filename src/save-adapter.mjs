@@ -49,12 +49,15 @@ export function activeConditions(statuses){
 const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // Named magic armour whose display name and stats ID carry no family word.
 // gamedata.json cannot settle these: it holds names, slots and rarity but no
-// armour-class data at all. Each entry is transcribed from the item's own
-// tooltip in game and keyed on the stats ID, which is stable across saves and
-// localisations where a display name is not. The transcribed class already
-// includes whatever enchantment the item carries.
+// armour-class data at all. Each entry is keyed on the stats ID, which is
+// stable across saves and localisations where a display name is not, and its
+// class is the item's finished number, enchantment included.
+//
+// Luminous Armour: medium, class 15, Dexterity capped at +2, per its stat
+// block on bg3.wiki. The rarity there agrees with the Uncommon that
+// gamedata.json records for this stats ID.
 export const NAMED_ARMOUR=new Map([
- ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'heavy',ac:19}],
+ ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
 ]);
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
 // Progress through the current level, or null when the totals disagree with
@@ -135,13 +138,13 @@ export function adaptCharacter(report,index,template){
      warnings.push('Armour class was not calculated: '+(armourItem.name||armourItem.stats||'the equipped body armour')+' is not a recognised armour type.');
    } else {
      const base=match?match.base:10, dexCap=match?match.dexCap:Infinity;
-     // A transcribed class is the item's finished number, so a +N is only read
+     // A looked-up class is the item's finished number, so a +N is only read
      // off the display name of armour recognised by family.
      const enhancement=match?.named?0:Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
      out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
-     // Say so when a number rests on a transcription rather than on the
+     // Say so when a number rests on a published stat block rather than on the
      // parser's own data, so it can be checked against the game.
-     if(match?.named)warnings.push('Armour class uses a transcribed value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
+     if(match?.named)warnings.push('Armour class uses a published value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
    }
  } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
  out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2):'');
