@@ -6,6 +6,8 @@ The checkout is in `vendor/bg3-savefile-parser`. Its TypeScript source has local
 
 `src/save-adapter.mjs` translates the report into the character sheet. The parser’s [limitations](https://github.com/danielsamuels/bg3-savefile-parser/blob/9578ff7c46a1aa40c805f6b7beecf907f10fb3b8/LIMITS.md) still apply, including ambiguous hireling builds, some feat attribution and item-name variants. The adapter derives base AC and initiative from the recovered loadout and abilities. Selected proficiencies and background are not inferred from class. Live equipment uses decoded inventory containers, with an upstream fallback for ambiguous owners. Active combat boosts remain incomplete.
 
+Position lookup for a party member without a recognised template considers only `Character` nodes. A character's own subtree repeats its Translate on bookkeeping nodes such as `TargetData/SurfaceLayerCheck`, and counting those as rivals made a unique position look ambiguous, so a second custom player standing on a surface was left with no character node and therefore no equipment, inventory or conditions.
+
 Local inventory changes correct the 48-byte heap base for stack tables, stack groups, container tables and owner lists. Container kind is read through DataComponent into the Type pool; equipped and carried membership is determined by containers rather than item names. Stack counts are summed per member, including final records and stacks of one.
 
 No upstream licence file was found in this checkout. Redistribution permission must be established before publishing the vendored parser.
