@@ -38,6 +38,38 @@ test('a named armour caps Dexterity at its own category and adds no phantom ench
  // +5 Dexterity, but medium armour allows only +2, and 15 is already final.
  const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,17);
 });
+// Clothing in the body slot is not unrecognised armour: it is the absence of
+// armour, which the sheet can score exactly.
+function clothed(name,stats,over={}){
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:10,dex:16,con:18,int:10,wis:16,cha:10,...(over.abilities||{})};
+ c.selected_passives=over.passives||[];
+ c.equipped=[{stats,name,slot:'Breast',count:1},...(over.extra||[])];
+ if(over.classes)c.class_levels=over.classes;
+ return adaptCharacter(r,i,blank()).sheet;
+}
+test('a robe scores as unarmoured rather than withholding the total',()=>{
+ // Base 10 and the whole +3, with no medium-armour cap in the way.
+ const s=clothed('Potent Robe','MAG_CharismaCaster_Robe');
+ assert.equal(s.ac,13);assert.doesNotMatch(s.importSummary,/not a recognised armour type/);
+});
+test('a barbarian in clothing keeps her Constitution',()=>{
+ const s=clothed('Enraging Heart Garb','MAG_Barbarian_Magic_Armor_1',{classes:[{name:'Barbarian',subclass:'',level:9}]});
+ assert.equal(s.ac,17); // 10 + 3 Dexterity + 4 Constitution
+});
+test('a monk loses unarmoured defence the moment a shield is held',()=>{
+ const monk={classes:[{name:'Monk',subclass:'',level:9}]};
+ assert.equal(clothed('Simple Robe','ARM_Robe_Body',monk).ac,16); // 10 + 3 Dex + 3 Wis
+ assert.equal(clothed('Simple Robe','ARM_Robe_Body',{...monk,extra:[{name:'Iron-Banded Shield',stats:'ARM_Shield',slot:'Shield',count:1}]}).ac,15); // 10 + 3 + shield
+});
+test('the Defence fighting style needs armour, which clothing is not',()=>{
+ const s=clothed('Simple Robe','ARM_Robe_Body',{passives:['FightingStyle_Defense']});
+ assert.equal(s.ac,13);
+});
+test('a named heavy armour ignores Dexterity entirely',()=>{
+ const s=clothed("Reaper's Embrace",'MOO_Ketheric_Armor');
+ assert.equal(s.ac,19);assert.match(s.importSummary,/published value for Reaper's Embrace/);
+});
 test('named light armour is included in the shared AC calculation',()=>{const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');r.characters[i].abilities.dex=13;r.characters[i].equipped=[{stats:'GOB_DrowCommander_Leather_Armor',name:'Spidersilk Armour',slot:'Body',count:1}];const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,13);});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});

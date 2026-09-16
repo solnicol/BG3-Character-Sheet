@@ -56,9 +56,18 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // Luminous Armour: medium, class 15, Dexterity capped at +2, per its stat
 // block on bg3.wiki. The rarity there agrees with the Uncommon that
 // gamedata.json records for this stats ID.
+// Reaper's Embrace: heavy, class 19, per its stat block on bg3.wiki.
 export const NAMED_ARMOUR=new Map([
  ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
+ ['MOO_Ketheric_Armor',{name:"Reaper's Embrace",type:'heavy',ac:19}],
 ]);
+// Body-slot clothing is not armour. A robe, a garb or a set of camp clothes
+// leaves the wearer unarmoured, which scores as base 10 and the whole
+// Dexterity modifier, so it is something the sheet knows rather than something
+// it must withhold. Of the 169 body-slot entries in gamedata.json, 48 of the
+// 75 that carry no family word are clothing, and none of the 94 that do also
+// match this, so the two tests cannot disagree about an item.
+export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
 // Progress through the current level, or null when the totals disagree with
 // the table (a modded XP curve, or a future patch retuning it). A wrong
@@ -118,8 +127,11 @@ export function adaptCharacter(report,index,template){
  const armourFamily=i=>{
    const named=NAMED_ARMOUR.get(i.stats);
    if(named)return {base:named.ac,dexCap:DEX_CAP[named.type],named};
-   const row=armourBases.find(([pattern])=>pattern.test(`${i.name||''} ${i.stats||''}`));
-   return row?{base:row[1],dexCap:row[2],named:null}:null;
+   const text=`${i.name||''} ${i.stats||''}`;
+   // A real armour family wins over an accidental clothing word.
+   const row=armourBases.find(([pattern])=>pattern.test(text));
+   if(row)return {base:row[1],dexCap:row[2],named:null,clothing:false};
+   return CLOTHING.test(text)?{base:10,dexCap:Infinity,named:null,clothing:true}:null;
  };
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
@@ -137,11 +149,24 @@ export function adaptCharacter(report,index,template){
      out.ac=Number.isFinite(c.armour_class)?c.armour_class:'';
      warnings.push('Armour class was not calculated: '+(armourItem.name||armourItem.stats||'the equipped body armour')+' is not a recognised armour type.');
    } else {
+     // Barbarian and Monk carry their own unarmoured defence, and clothing
+     // counts as wearing nothing. Without this a Barbarian in a garb scores
+     // her Constitution short. The Monk's version is lost the moment a shield
+     // is held; the Barbarian may hold one and keep it. A character with both
+     // takes whichever is higher, since the two never stack.
+     const unarmoured=!match||match.clothing;
+     const classNames=new Set(out.classes.map(x=>x.name));
+     const abilityMod=a=>Number.isInteger(out.abilities[a])?Math.floor((out.abilities[a]-10)/2):null;
+     const con=abilityMod('con'), wis=abilityMod('wis');
+     const defences=[];
+     if(unarmoured&&classNames.has('Barbarian')&&con!==null)defences.push(con);
+     if(unarmoured&&classNames.has('Monk')&&!shieldItem&&wis!==null)defences.push(wis);
+     const unarmouredDefence=defences.length?Math.max(...defences):0;
      const base=match?match.base:10, dexCap=match?match.dexCap:Infinity;
      // A looked-up class is the item's finished number, so a +N is only read
      // off the display name of armour recognised by family.
      const enhancement=match?.named?0:Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
-     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
+     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
      // Say so when a number rests on a published stat block rather than on the
      // parser's own data, so it can be checked against the game.
      if(match?.named)warnings.push('Armour class uses a published value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
