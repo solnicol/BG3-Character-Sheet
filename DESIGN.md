@@ -15,6 +15,6 @@ The previous toolbar gave import, backup, reset and print nearly equal prominenc
 
 ## Accuracy and release boundaries
 
-Visual hierarchy must never imply unavailable mechanics have been verified. Unknown values retain their existing representation; parser diagnostics remain accessible. The combat-body-slot matcher now excludes camp clothing, which caused incorrect AC for the captured Bob and Savros reports.
+Visual hierarchy must never imply unavailable mechanics have been verified. Unknown values retain their existing representation; parser diagnostics remain accessible. The existing combat-body-slot matcher excludes camp clothing; an additional regression check covers all three captured loadouts in either equipment order. The latest typography, print-column layout and parser fixes are retained.
 
 This design pass is a local preview until explicitly published. Verify the actual production domain and deployed assets before claiming a live release. The old deployment-specific URL does not track future deployments.

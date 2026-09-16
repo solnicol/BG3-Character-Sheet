@@ -11,7 +11,38 @@ Combat contributions implemented:
 - [Gloves of Archery](https://bg3.wiki/wiki/Gloves_of_Archery): +2 ranged weapon damage, not attack.
 - [Sharpshooter: All In](https://bg3.wiki/wiki/Sharpshooter:_All_In): -5 ranged weapon attack and +10 damage only when the owning character's saved toggle is enabled and the weapon is proficient.
 - [Defence](https://bg3.wiki/wiki/Defence): +1 AC while wearing recognised body armour.
+- Armour class is derived from the live loadout. Body armour and shields are identified
+  by the parser's canonical slot, so a `VanityBody` cosmetic overlay never displaces real
+  `Breast` armour and a ring named "of Mind-Shielding" never counts as a shield.
+- The parser's `armour_class` field is declared but never populated, so it is only a
+  forward-compatible fallback and is never the sole basis for a total.
+- Armour whose type is not recognised leaves armour class blank with an explicit import
+  warning. Scoring it as unarmoured would silently under-report by up to seven points,
+  so no number is shown rather than a wrong one. Named magic armour such as Luminous
+  Armour, Enraging Heart Garb and The Graceful Cloth needs armour-class game data that
+  is not yet vendored.
 - Duelling and two-weapon fighting: supported base damage adjustments; special weapons and situational effects still need broader game-data coverage.
+
+Conditions: active statuses are read from each character's own `StatusManager` node, the
+same anchor the parser uses to attribute worn items, so they are never borrowed from a
+neighbouring character. `LifeTime` separates the two kinds the save holds: timed statuses
+are what the game lists under Conditions, while permanent ones (-1) are the bookkeeping its
+panel never shows — item auras, surface effects, carried-object flags and `_TECHNICAL`
+appliers. Only the timed ones reach the sheet. There is no status display-name table in the
+vendored game data, so ids are transcribed rather than looked up: the source prefix and
+engine qualifiers are stripped and the rest title cased, which gives `MAG_AID` as "Aid" and
+`MAG_SEE_INVISIBILITY_HIDDEN_IGNORE_RESTING` as "See Invisibility". An unusual status may
+therefore read a little raw, and the sheet does not reproduce the game's own curation of
+which timed statuses are worth showing.
+
+Experience: saves store a cumulative total, while the game's own UI shows progress within
+the current level. The sheet reports the in-level figures to match what the player sees.
+The level thresholds are 0, 300, 900, 2700, 6500, 13000, 21000, 30000, 42000, 56000, 76000
+and 100000, verified against a save rather than a secondary source: a level 4 character
+holding 3542 cumulative XP is reported in game as 842 earned with 2958 remaining, which
+fixes level 4 at 2700 and level 5 at 6500, and the series ends at exactly 100000. When a
+total falls outside the band its level implies, the remaining figure is withheld rather
+than guessed. `src/save-adapter.mjs` owns the table and a test keeps `index.html` in step.
 
 [Favourable Beginnings](https://bg3.wiki/wiki/Favourable_Beginnings) is conditional on the first attack against a target. It is not silently added to every attack. Full active-status and target-dependent totals are not yet reconstructed. The sheet's attack numbers are supported baseline totals plus recovered toggles, not a promise to match every in-game target tooltip.
 

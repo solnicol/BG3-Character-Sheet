@@ -13,6 +13,62 @@ const amount=n=>Number.isFinite(n)?String(Math.round(n*100)/100):'?';
 const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${i.name||i.stats||'Unresolved item'}${i.slot?' ['+i.slot+']':''}`;
 const groupItems=(name,items)=>items?.length?name+'\n'+items.map(itemLine).join('\n'):'';
 const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
+// Larian's status ids are screaming snake case with a source prefix
+// (MAG_ for an item or spell effect, TAD_ for tadpole powers) and sometimes a
+// trailing engine qualifier. There is no display-name table in the vendored
+// game data, so the id is cleaned and title cased. This is a transcription of
+// the id, not a lookup: an unusual status may read a little raw.
+const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA)_/;
+const STATUS_QUALIFIER=/_(HIDDEN|TECHNICAL|APPLIER|STARTER|IGNORE_RESTING|DISPLAY|VFX|SFX)(?=_|$)/g;
+export function statusName(id){
+ const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'').replace(/_+/g,'_').replace(/^_|_$/g,'');
+ return core?core.split('_').map(w=>w[0]+w.slice(1).toLowerCase()).join(' '):'';
+}
+// Only the non-permanent entries reach the sheet; the permanent ones are the
+// item auras and carried-object flags the game's own panel leaves out.
+export function activeConditions(statuses){
+ const seen=new Set(),out=[];
+ for(const s of statuses||[]){
+  if(!s||s.permanent)continue;
+  const name=statusName(s.id);
+  if(!name||seen.has(name))continue;
+  seen.add(name);out.push(name);
+ }
+ return out;
+}
+// Cumulative experience required to reach each level, indexed by level.
+// Verified against a live save rather than taken from a secondary source:
+// Neith is level 4 holding 3542 total XP, and the game's own tooltip reads
+// "Current experience: 842. Remaining experience needed to gain a level:
+// 2958." Level 4 therefore begins at 3542 - 842 = 2700 and level 5 at
+// 2700 + 3800 = 6500. The series ends at exactly 100000, BG3's level 12
+// total, which corroborates the remaining rows.
+// index.html holds an identical copy for live display; a test asserts they
+// stay in step.
+// Dexterity contribution allowed by each armour category.
+const DEX_CAP={light:Infinity,medium:2,heavy:0};
+// Named magic armour whose display name and stats ID carry no family word.
+// gamedata.json cannot settle these: it holds names, slots and rarity but no
+// armour-class data at all. Each entry is keyed on the stats ID, which is
+// stable across saves and localisations where a display name is not, and its
+// class is the item's finished number, enchantment included.
+//
+// Luminous Armour: medium, class 15, Dexterity capped at +2, per its stat
+// block on bg3.wiki. The rarity there agrees with the Uncommon that
+// gamedata.json records for this stats ID.
+export const NAMED_ARMOUR=new Map([
+ ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
+]);
+export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
+// Progress through the current level, or null when the totals disagree with
+// the table (a modded XP curve, or a future patch retuning it). A wrong
+// "XP to next level" is worse than none, so callers show nothing instead.
+export function xpProgress(xp,level){
+ if(!integer(xp,0,10000000)||!integer(level,1,12))return null;
+ const floor=XP_LEVELS[level],ceiling=level<12?XP_LEVELS[level+1]:null;
+ if(xp<floor||(ceiling!==null&&xp>=ceiling))return null;
+ return {within:xp-floor,band:ceiling===null?null:ceiling-floor,remaining:ceiling===null?null:ceiling-xp};
+}
 export function characterClasses(c){
  const total=Number(c.level);
  if(!integer(total,1,12))throw Error('This character’s level is unavailable or outside the supported range of 1–12.');
@@ -37,27 +93,59 @@ export function adaptCharacter(report,index,template){
  out.background=text(c.background)||'';
  out.armour=(c.equipment_proficiencies||[]).filter(x=>/Armour|Shield/.test(x)).join('\n');
  out.weapons=(c.equipment_proficiencies||[]).filter(x=>!/Armour|Shield/.test(x)).join('\n');
+ // Experience is stored cumulatively in the save; the game's own UI shows
+ // progress within the current level instead. Keep the save's number and let
+ // the sheet derive the in-level figures from it.
+ out.xp=integer(c.xp,0,10000000)?c.xp:'';
+ if(out.xp!==''&&!xpProgress(out.xp,out.classes.reduce((n,x)=>n+x.level,0)))warnings.push('Experience total '+out.xp+' does not match the expected range for this level, so progress to the next level is not shown.');
  out.hp=integer(c.hp?.current)?c.hp.current:'';out.maxHp=integer(c.hp?.max)?c.hp.max:'';out.tempHp=integer(c.hp?.temp)?c.hp.temp:'';
  if(!c.hp)warnings.push('Hit points were not recovered.');
  const resources=c.resources||[];
  const movement=resources.find(r=>r.guid==='d6b2369d-84f0-4ca4-a3a7-62d2d192a185');
  out.speed=movement&&Number.isFinite(movement.max)&&movement.max>=0&&movement.max<=1000?movement.max:'';
- // Resolve the combat body slot exactly: VanityBody is camp clothing.
- // Keep an explicit saved total as a fallback for unsupported armour.
+ // Reconstruct AC from the live loadout. The parser declares armour_class in
+ // its model but never assigns it, so it is retained only as a forward
+ // -compatible fallback and is never the sole basis for a total.
+ //
+ // Body armour and shields are identified by the parser's canonical slot,
+ // which comes from the game's own stats_slots table, rather than guessed
+ // from item names: 'VanityBody' is a cosmetic overlay that must not displace
+ // real 'Breast' armour, and a 'Ring' called "Ring of Mind-Shielding" is not
+ // a shield.
  const wornItems=c.equipped||[];
  const passives=new Set(c.selected_passives||[]);
+ const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale ?Mail/i,14,2],[/Studded/i,12,Infinity],[/Padded/i,11,Infinity],[/Leather/i,11,Infinity],[/Splint/i,17,0],[/Plate/i,18,0],[/Chain ?Mail/i,16,0],[/Chain ?Shirt/i,13,2],[/Ring ?Mail/i,14,0],[/Hide/i,12,2]];
+ const armourFamily=i=>{
+   const named=NAMED_ARMOUR.get(i.stats);
+   if(named)return {base:named.ac,dexCap:DEX_CAP[named.type],named};
+   const row=armourBases.find(([pattern])=>pattern.test(`${i.name||''} ${i.stats||''}`));
+   return row?{base:row[1],dexCap:row[2],named:null}:null;
+ };
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
-   const armourItem=wornItems.find(i=>/^(Body|Breast)$/i.test(i.slot||''))||wornItems.find(i=>!i.slot&&!/Camp|Underwear|Helmet|Glove|Boot|Hat/i.test(i.stats||'')&&/ARM_|Armor/i.test(i.stats||''));
-   const armourText=`${armourItem?.name||''} ${armourItem?.stats||''}`;
-   const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale Mail|ScaleMail/i,14,2],[/Studded Leather|Studded/i,12,Infinity],[/Leather/i,11,Infinity],[/Plate/i,18,0],[/Splint/i,17,0],[/Chain Mail|ChainMail/i,16,0],[/Chain Shirt|ChainShirt/i,13,2],[/Hide/i,12,2],[/Ring Mail|RingMail/i,14,0]];
-   const match=armourBases.find(([pattern])=>pattern.test(armourText));
-   const base=match?match[1]:10, dexCap=match?match[2]:Infinity;
-   const enhancement=Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
-   const shieldItem=wornItems.find(i=>/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`));
+   // Only a genuine body slot counts. Items with no recovered slot are
+   // accepted only when they name a known armour type, so a lute or a
+   // circlet can never be mistaken for a cuirass.
+   const armourItem=wornItems.find(i=>i.slot==='Breast'||i.slot==='Body')||wornItems.find(i=>!i.slot&&armourFamily(i));
+   const match=armourItem?armourFamily(armourItem):null;
+   const shieldItem=wornItems.find(i=>(i.slot==='Shield'||/Offhand/i.test(i.slot||''))&&/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`));
    const shieldBonus=shieldItem?2+Number((shieldItem.name||'').match(/\+(\d+)/)?.[1]||0):0;
-   const derived=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
-   out.ac=match||shieldItem?derived:(Number.isFinite(c.armour_class)?c.armour_class:'');
+   if(armourItem&&!match) {
+     // Armour is worn but its class is unknown to us. Treating it as
+     // unarmoured would silently under-report by up to seven points, so the
+     // sheet reports nothing rather than a number it cannot stand behind.
+     out.ac=Number.isFinite(c.armour_class)?c.armour_class:'';
+     warnings.push('Armour class was not calculated: '+(armourItem.name||armourItem.stats||'the equipped body armour')+' is not a recognised armour type.');
+   } else {
+     const base=match?match.base:10, dexCap=match?match.dexCap:Infinity;
+     // A looked-up class is the item's finished number, so a +N is only read
+     // off the display name of armour recognised by family.
+     const enhancement=match?.named?0:Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
+     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
+     // Say so when a number rests on a published stat block rather than on the
+     // parser's own data, so it can be checked against the game.
+     if(match?.named)warnings.push('Armour class uses a published value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
+   }
  } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
  out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2):'');
  out.slots=Array(6).fill('');out.pactSlots=Array(6).fill('');
@@ -129,7 +217,7 @@ export function adaptCharacter(report,index,template){
  out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',c.reactions?.length?'\n\nReactions\n'+c.reactions.join('\n'):''].join('');
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
- out.conditions=c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):'';
+ out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');
  if(c.equipment_note)warnings.push('Equipment: '+c.equipment_note+'.');
