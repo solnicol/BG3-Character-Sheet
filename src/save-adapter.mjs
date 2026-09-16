@@ -248,6 +248,13 @@ export function adaptCharacter(report,index,template){
  // An enhancement the sheet cannot see makes every figure on a weapon's line
  // one or two low. Saying which weapons that applies to is better than a
  // number that looks settled.
+ // A weapon slot holds a weapon. When its base type is not one the table
+ // knows, the line simply vanishes from Attacks & damage and the character
+ // reads as though that hand were empty. A shield sits in an offhand weapon
+ // slot without being a weapon, so it is not owed an attack line.
+ const shieldLike=i=>/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`);
+ const unrecognisedWeapons=equippedOrdered.filter(i=>/Weapon$/.test(i.slot||'')&&!shieldLike(i)&&!weaponProperties(i)).map(itemLabel);
+ if(unrecognisedWeapons.length)warnings.push('No attack line for '+unrecognisedWeapons.join(', ')+': the base weapon type was not recognised, so the equipped list is the only record of it.');
  const uncertainWeapons=attackItems.filter(weaponEnhancementUnknown).map(itemLabel);
  if(uncertainWeapons.length)warnings.push('Any item bonus on '+uncertainWeapons.join(', ')+' is not included: the enhancement is held in the item rather than its name, so attack and damage may be understated.');
  const gold=(c.carried||[]).filter(i=>['OBJ_GoldCoin','OBJ_GoldPile'].includes(i.stats));

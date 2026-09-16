@@ -139,6 +139,22 @@ test('an unnamed weapon of a known base type still gets its attack line',()=>{
  const {sheet}=adaptCharacter(r,i,blank());
  assert.match(sheet.attacks,/^Dead In Water Hand Crossbow: \+6 to hit, 1d6 \+3 piercing/);
 });
+// A weapon whose base type is unknown used to leave no trace at all: its
+// attack line simply did not appear, which reads as an empty hand.
+test('an unrecognised weapon in a weapon slot is named rather than dropped',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:'Phalar Aluve',stats:'UND_SwordInStone',slot:'Melee Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ assert.equal(sheet.attacks,'');
+ assert.match(warnings.join(' '),/No attack line for Phalar Aluve/);
+ // The equipped list stays the record of it.
+ assert.match(sheet.equipment,/Phalar Aluve \[Melee Main Weapon\]/);
+});
+test('a shield in an offhand weapon slot is owed no attack line',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:'Shield of Devotion',stats:'MAG_BG_OfDevotion_Shield',slot:'Melee Offhand Weapon',count:1}];
+ assert.equal(adaptCharacter(r,i,blank()).warnings.some(w=>/No attack line/.test(w)),false);
+});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
 test('combat actions are kept out of the spell list',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'h',name:'Heroism',category:'spell',level:1,prepared:true},{id:'a',name:'Action Surge',category:'spell',level:null,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.match(s.spells,/Heroism/);assert.doesNotMatch(s.spells,/Action Surge/);assert.match(s.features,/Action Surge/);});
