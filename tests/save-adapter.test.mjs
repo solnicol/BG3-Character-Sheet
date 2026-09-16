@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions} from '../src/save-adapter.mjs';
+import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions,itemLabel} from '../src/save-adapter.mjs';
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
@@ -114,6 +114,30 @@ test('a plain weapon raises no doubt about a hidden enhancement',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
  c.equipped=[{name:'Dagger',stats:'WPN_Dagger',slot:'Melee Main Weapon',count:1}];
  assert.equal(adaptCharacter(r,i,blank()).warnings.some(w=>/item bonus on/.test(w)),false);
+});
+// An item the game data cannot name occupies a slot regardless, so its id is
+// read into words rather than printed as an identifier or dropped.
+test('an item with no name is read from its stats id, prefix and all',()=>{
+ assert.equal(itemLabel({stats:'UND_SharranCrossbow'}),'Sharran Crossbow');
+ assert.equal(itemLabel({stats:'FOR_SchoolOgres_Horn'}),'School Ogres Horn');
+ assert.equal(itemLabel({stats:'SHA_BrokenLever'}),'Broken Lever');
+ assert.equal(itemLabel({name:'Titanstring Bow',stats:'MAG_StrongString_Longbow'}),'Titanstring Bow');
+ assert.equal(itemLabel({stats:''}),'Unresolved item');
+});
+test('an unnamed item keeps its place in the equipped list',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:null,stats:'UND_SharranCrossbow',slot:'Ranged Main Weapon',count:1}];
+ const {sheet}=adaptCharacter(r,i,blank());
+ assert.match(sheet.equipment,/Sharran Crossbow \[Ranged Main Weapon\]/);
+ assert.doesNotMatch(sheet.equipment,/UND_/);
+});
+test('an unnamed weapon of a known base type still gets its attack line',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:10,dex:16,con:14,int:10,wis:10,cha:10};
+ c.proficiency_bonus=3;c.equipment_proficiencies=['Martial Weapons'];
+ c.equipped=[{name:null,stats:'UND_DeadInWater_HandCrossbow',slot:'Ranged Main Weapon',count:1}];
+ const {sheet}=adaptCharacter(r,i,blank());
+ assert.match(sheet.attacks,/^Dead In Water Hand Crossbow: \+6 to hit, 1d6 \+3 piercing/);
 });
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});

@@ -10,7 +10,18 @@ const SUBCLASSES={BattleMaster:'Battle Master',TotemWarriorPath:'Wildheart',Bers
 const text=v=>typeof v==='string'?v:'';
 const title=v=>SUBCLASSES[v]||text(v).replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ');
 const amount=n=>Number.isFinite(n)?String(Math.round(n*100)/100):'?';
-const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${i.name||i.stats||'Unresolved item'}${i.slot?' ['+i.slot+']':''}`;
+// Larian prefixes a status or an item with the content it belongs to. The
+// regional ones here are the prefixes gamedata.json itself uses on stats and
+// spells, so a status picked up at Moonrise reads 'Potion …' rather than 'Moo
+// Potion …'.
+const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA|MOO|COL|FOR|UND|TWN|DEN|WYR|HAG|CRE)_/;
+// An item the game data cannot name still occupies a slot or a bag, so unlike
+// a technical spell it has to stay on the sheet. Read its stats id the way a
+// status id is read, dropping the content prefix and splitting the identifier
+// into words: UND_SharranCrossbow is a Sharran Crossbow, not an identifier
+// printed on a character sheet.
+export const itemLabel=i=>i?.name||(i?.stats?title(String(i.stats).replace(STATUS_PREFIX,'')):'')||'Unresolved item';
+const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${itemLabel(i)}${i.slot?' ['+i.slot+']':''}`;
 const groupItems=(name,items)=>items?.length?name+'\n'+items.map(itemLine).join('\n'):'';
 const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
 // Larian's status ids are screaming snake case with a source prefix
@@ -21,7 +32,7 @@ const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
 // Larian prefixes a status with the content it belongs to. The regional ones
 // here are the prefixes gamedata.json itself uses on stats and spells, so a
 // status picked up at Moonrise reads 'Potion …' rather than 'Moo Potion …'.
-const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA|MOO|COL|FOR|UND|TWN|DEN|WYR|HAG|CRE)_/;
+
 const STATUS_QUALIFIER=/_(HIDDEN|TECHNICAL|APPLIER|STARTER|IGNORE_RESTING|DISPLAY|VFX|SFX)(?=_|$)/g;
 export function statusName(id){
  const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'')
@@ -231,13 +242,13 @@ export function adaptCharacter(report,index,template){
    const extra=w.extra?Math.max(w.extraMin,modifier(out.abilities[w.extra])??w.extraMin):0;
    const damageMod=m===null?null:damageAbility+w.enhancement+extra+archeryGloves+duelling+(allIn?10:0);
    const sign=n=>n>=0?'+'+n:String(n);
-   return `${i.name||i.stats}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}`;
+   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}`;
  });
  out.attacks=attackLines.join('\n');
  // An enhancement the sheet cannot see makes every figure on a weapon's line
  // one or two low. Saying which weapons that applies to is better than a
  // number that looks settled.
- const uncertainWeapons=attackItems.filter(weaponEnhancementUnknown).map(i=>i.name||i.stats);
+ const uncertainWeapons=attackItems.filter(weaponEnhancementUnknown).map(itemLabel);
  if(uncertainWeapons.length)warnings.push('Any item bonus on '+uncertainWeapons.join(', ')+' is not included: the enhancement is held in the item rather than its name, so attack and damage may be understated.');
  const gold=(c.carried||[]).filter(i=>['OBJ_GoldCoin','OBJ_GoldPile'].includes(i.stats));
  out.gold=gold.length&&gold.every(i=>i.count_known!==false&&integer(i.count))?gold.reduce((sum,i)=>sum+i.count,0):'';
