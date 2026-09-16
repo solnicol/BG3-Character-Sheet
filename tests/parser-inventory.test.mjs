@@ -75,3 +75,23 @@ test('two characters sharing a position remain ambiguous',()=>{
  const pos=[1,2,3],nodes=nodesAt(pos);nodes[4].attrs.Translate=pos;
  assert.equal(findCharacterNodeAt(nodes,pos),null);
 });
+
+// An extended party puts creatures on the same tile as a player often enough
+// to matter. Only a player-controlled character has PlayerData, so that breaks
+// the tie; two players on one tile still do not resolve.
+function rivalsAt(pos,playerNodes){
+ const nodes=[{name:'Characters',parent:-1,attrs:{},children:[1,3]},
+  {name:'Character',parent:0,attrs:{Translate:pos},children:[2]},
+  {name:'PlayerData',parent:1,attrs:{},children:[]},
+  {name:'Character',parent:0,attrs:{Translate:pos},children:[4]},
+  {name:playerNodes>1?'PlayerData':'PathingComponent',parent:3,attrs:{},children:[]}];
+ return nodes;
+}
+test('a creature on a player\'s tile does not cost the player its node',()=>{
+ const pos=[-57.75,45.5,-22.25];
+ assert.equal(findCharacterNodeAt(rivalsAt(pos,1),pos),1);
+});
+test('two player characters on one tile are still ambiguous',()=>{
+ const pos=[-57.75,45.5,-22.25];
+ assert.equal(findCharacterNodeAt(rivalsAt(pos,2),pos),null);
+});

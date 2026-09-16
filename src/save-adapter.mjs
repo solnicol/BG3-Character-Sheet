@@ -1,4 +1,4 @@
-import {weaponProperties} from './weapon-data.mjs';
+import {weaponProperties,weaponEnhancementUnknown} from './weapon-data.mjs';
 // Explicit translation from the pinned parser's report to the editable sheet.
 export const PARSER_REVISION='9578ff7c46a1aa40c805f6b7beecf907f10fb3b8';
 const CLASSES=['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard'];
@@ -10,7 +10,18 @@ const SUBCLASSES={BattleMaster:'Battle Master',TotemWarriorPath:'Wildheart',Bers
 const text=v=>typeof v==='string'?v:'';
 const title=v=>SUBCLASSES[v]||text(v).replace(/([a-z])([A-Z])/g,'$1 $2').replaceAll('_',' ');
 const amount=n=>Number.isFinite(n)?String(Math.round(n*100)/100):'?';
-const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${i.name||i.stats||'Unresolved item'}${i.slot?' ['+i.slot+']':''}`;
+// Larian prefixes a status or an item with the content it belongs to. The
+// regional ones here are the prefixes gamedata.json itself uses on stats and
+// spells, so a status picked up at Moonrise reads 'Potion …' rather than 'Moo
+// Potion …'.
+const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA|MOO|COL|FOR|UND|TWN|DEN|WYR|HAG|CRE)_/;
+// An item the game data cannot name still occupies a slot or a bag, so unlike
+// a technical spell it has to stay on the sheet. Read its stats id the way a
+// status id is read, dropping the content prefix and splitting the identifier
+// into words: UND_SharranCrossbow is a Sharran Crossbow, not an identifier
+// printed on a character sheet.
+export const itemLabel=i=>i?.name||(i?.stats?title(String(i.stats).replace(STATUS_PREFIX,'')):'')||'Unresolved item';
+const itemLine=i=>`${i.count_known===false?'? × ':i.count>1?i.count+' × ':''}${itemLabel(i)}${i.slot?' ['+i.slot+']':''}`;
 const groupItems=(name,items)=>items?.length?name+'\n'+items.map(itemLine).join('\n'):'';
 const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
 // Larian's status ids are screaming snake case with a source prefix
@@ -18,11 +29,23 @@ const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
 // trailing engine qualifier. There is no display-name table in the vendored
 // game data, so the id is cleaned and title cased. This is a transcription of
 // the id, not a lookup: an unusual status may read a little raw.
-const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA)_/;
+// Larian prefixes a status with the content it belongs to. The regional ones
+// here are the prefixes gamedata.json itself uses on stats and spells, so a
+// status picked up at Moonrise reads 'Potion …' rather than 'Moo Potion …'.
+
 const STATUS_QUALIFIER=/_(HIDDEN|TECHNICAL|APPLIER|STARTER|IGNORE_RESTING|DISPLAY|VFX|SFX)(?=_|$)/g;
 export function statusName(id){
- const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'').replace(/_+/g,'_').replace(/^_|_$/g,'');
- return core?core.split('_').map(w=>w[0]+w.slice(1).toLowerCase()).join(' '):'';
+ const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'')
+  // A trailing number is the effect's magnitude, not part of its name: AID_5
+  // is Aid for five hit points, and the sheet already shows the game's own
+  // wording without it.
+  .replace(/_\d+$/,'')
+  .replace(/_+/g,'_').replace(/^_|_$/g,'');
+ if(!core)return '';
+ const words=core.split('_').map(w=>w[0]+w.slice(1).toLowerCase());
+ // Stripping the prefix can leave the same word twice, as MAG_CRITICAL_
+ // CRITICAL_EXECUTION does. Say it once.
+ return words.filter((w,i)=>i===0||w.toLowerCase()!==words[i-1].toLowerCase()).join(' ');
 }
 // Only the non-permanent entries reach the sheet; the permanent ones are the
 // item auras and carried-object flags the game's own panel leaves out.
@@ -56,9 +79,18 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // Luminous Armour: medium, class 15, Dexterity capped at +2, per its stat
 // block on bg3.wiki. The rarity there agrees with the Uncommon that
 // gamedata.json records for this stats ID.
+// Reaper's Embrace: heavy, class 19, per its stat block on bg3.wiki.
 export const NAMED_ARMOUR=new Map([
  ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
+ ['MOO_Ketheric_Armor',{name:"Reaper's Embrace",type:'heavy',ac:19}],
 ]);
+// Body-slot clothing is not armour. A robe, a garb or a set of camp clothes
+// leaves the wearer unarmoured, which scores as base 10 and the whole
+// Dexterity modifier, so it is something the sheet knows rather than something
+// it must withhold. Of the 169 body-slot entries in gamedata.json, 48 of the
+// 75 that carry no family word are clothing, and none of the 94 that do also
+// match this, so the two tests cannot disagree about an item.
+export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
 // Progress through the current level, or null when the totals disagree with
 // the table (a modded XP curve, or a future patch retuning it). A wrong
@@ -118,8 +150,11 @@ export function adaptCharacter(report,index,template){
  const armourFamily=i=>{
    const named=NAMED_ARMOUR.get(i.stats);
    if(named)return {base:named.ac,dexCap:DEX_CAP[named.type],named};
-   const row=armourBases.find(([pattern])=>pattern.test(`${i.name||''} ${i.stats||''}`));
-   return row?{base:row[1],dexCap:row[2],named:null}:null;
+   const text=`${i.name||''} ${i.stats||''}`;
+   // A real armour family wins over an accidental clothing word.
+   const row=armourBases.find(([pattern])=>pattern.test(text));
+   if(row)return {base:row[1],dexCap:row[2],named:null,clothing:false};
+   return CLOTHING.test(text)?{base:10,dexCap:Infinity,named:null,clothing:true}:null;
  };
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
@@ -137,11 +172,24 @@ export function adaptCharacter(report,index,template){
      out.ac=Number.isFinite(c.armour_class)?c.armour_class:'';
      warnings.push('Armour class was not calculated: '+(armourItem.name||armourItem.stats||'the equipped body armour')+' is not a recognised armour type.');
    } else {
+     // Barbarian and Monk carry their own unarmoured defence, and clothing
+     // counts as wearing nothing. Without this a Barbarian in a garb scores
+     // her Constitution short. The Monk's version is lost the moment a shield
+     // is held; the Barbarian may hold one and keep it. A character with both
+     // takes whichever is higher, since the two never stack.
+     const unarmoured=!match||match.clothing;
+     const classNames=new Set(out.classes.map(x=>x.name));
+     const abilityMod=a=>Number.isInteger(out.abilities[a])?Math.floor((out.abilities[a]-10)/2):null;
+     const con=abilityMod('con'), wis=abilityMod('wis');
+     const defences=[];
+     if(unarmoured&&classNames.has('Barbarian')&&con!==null)defences.push(con);
+     if(unarmoured&&classNames.has('Monk')&&!shieldItem&&wis!==null)defences.push(wis);
+     const unarmouredDefence=defences.length?Math.max(...defences):0;
      const base=match?match.base:10, dexCap=match?match.dexCap:Infinity;
      // A looked-up class is the item's finished number, so a +N is only read
      // off the display name of armour recognised by family.
      const enhancement=match?.named?0:Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
-     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+(match&&passives.has('FightingStyle_Defense')?1:0);
+     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
      // Say so when a number rests on a published stat block rather than on the
      // parser's own data, so it can be checked against the game.
      if(match?.named)warnings.push('Armour class uses a published value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
@@ -189,11 +237,26 @@ export function adaptCharacter(report,index,template){
    const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
    const die=twoHanded?(w.die==='1d6'?'1d8':'1d10'):w.die;
    const duelling=!twoHanded&&!ranged&&passives.has('FightingStyle_Dueling')&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||'')&&weaponProperties(x))&&!/Great|Maul|Glaive|Halberd|Pike/.test(w.name)?2:0;
-   const damageMod=m===null?null:damageAbility+w.enhancement+archeryGloves+duelling+(allIn?10:0);
+   // A weapon that adds a second ability's modifier to its damage, such as the
+   // Titanstring Bow's Strength, never gives less than the floor it guarantees.
+   const extra=w.extra?Math.max(w.extraMin,modifier(out.abilities[w.extra])??w.extraMin):0;
+   const damageMod=m===null?null:damageAbility+w.enhancement+extra+archeryGloves+duelling+(allIn?10:0);
    const sign=n=>n>=0?'+'+n:String(n);
-   return `${i.name||i.stats}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}`;
+   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}`;
  });
  out.attacks=attackLines.join('\n');
+ // An enhancement the sheet cannot see makes every figure on a weapon's line
+ // one or two low. Saying which weapons that applies to is better than a
+ // number that looks settled.
+ // A weapon slot holds a weapon. When its base type is not one the table
+ // knows, the line simply vanishes from Attacks & damage and the character
+ // reads as though that hand were empty. A shield sits in an offhand weapon
+ // slot without being a weapon, so it is not owed an attack line.
+ const shieldLike=i=>/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`);
+ const unrecognisedWeapons=equippedOrdered.filter(i=>/Weapon$/.test(i.slot||'')&&!shieldLike(i)&&!weaponProperties(i)).map(itemLabel);
+ if(unrecognisedWeapons.length)warnings.push('No attack line for '+unrecognisedWeapons.join(', ')+': the base weapon type was not recognised, so the equipped list is the only record of it.');
+ const uncertainWeapons=attackItems.filter(weaponEnhancementUnknown).map(itemLabel);
+ if(uncertainWeapons.length)warnings.push('Any item bonus on '+uncertainWeapons.join(', ')+' is not included: the enhancement is held in the item rather than its name, so attack and damage may be understated.');
  const gold=(c.carried||[]).filter(i=>['OBJ_GoldCoin','OBJ_GoldPile'].includes(i.stats));
  out.gold=gold.length&&gold.every(i=>i.count_known!==false&&integer(i.count))?gold.reduce((sum,i)=>sum+i.count,0):'';
  out.features=(c.feats||[]).map(f=>`${f.name||f.guid} (level ${f.level})${f.picks?.length?': '+f.picks.join(', '):''}`).join('\n');
@@ -202,8 +265,15 @@ export function adaptCharacter(report,index,template){
  const combatActions=/^(Action Surge|Flourish|Menacing Attack(?: \((?:Melee|Ranged)\))?|Piercing Shot|Piercing Strike|Second Wind|Sweeping Attack|Weakening Strike|Astral Knowledge|Fey Presence|Radiance of the Dawn|Turn Undead)$/i;
  // A spell can be present once for its class list, once for its subclass and
  // again in the prepared list. Merge those records before printing.
+ // A spell the game data cannot name is a technical container or a mod's own
+ // entry, never something the in-game spellbook shows. Printing its raw id
+ // puts 'Target_Smite_Branding_Container_3' on a printed sheet, so leave it
+ // out and say how many were left out rather than pretending the list is
+ // complete.
+ const unnamedSpells=spells.filter(s=>s.category==='spell'&&!s.name).length;
+ if(unnamedSpells)warnings.push(unnamedSpells+' spell '+(unnamedSpells===1?'entry has':'entries have')+' no name in the game data, so '+(unnamedSpells===1?'it is':'they are')+' not listed. Mod-added spells appear this way.');
  const uniqueSpells=new Map();
- for(const s of spells) if(s.category==='spell'&&!combatActions.test(String(s.name||''))){
+ for(const s of spells) if(s.category==='spell'&&s.name&&!combatActions.test(String(s.name))){
    const key=String(s.name||s.id||'').trim().toLowerCase();
    const prev=uniqueSpells.get(key);
    if(!prev || (s.prepared===true && prev.prepared!==true)) uniqueSpells.set(key,{...prev,...s,prepared:s.prepared===true||prev?.prepared===true});

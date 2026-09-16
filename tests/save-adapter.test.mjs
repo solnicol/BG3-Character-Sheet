@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions} from '../src/save-adapter.mjs';
+import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions,itemLabel} from '../src/save-adapter.mjs';
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
@@ -38,7 +38,123 @@ test('a named armour caps Dexterity at its own category and adds no phantom ench
  // +5 Dexterity, but medium armour allows only +2, and 15 is already final.
  const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,17);
 });
+// Clothing in the body slot is not unrecognised armour: it is the absence of
+// armour, which the sheet can score exactly.
+function clothed(name,stats,over={}){
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:10,dex:16,con:18,int:10,wis:16,cha:10,...(over.abilities||{})};
+ c.selected_passives=over.passives||[];
+ c.equipped=[{stats,name,slot:'Breast',count:1},...(over.extra||[])];
+ if(over.classes)c.class_levels=over.classes;
+ return adaptCharacter(r,i,blank()).sheet;
+}
+test('a robe scores as unarmoured rather than withholding the total',()=>{
+ // Base 10 and the whole +3, with no medium-armour cap in the way.
+ const s=clothed('Potent Robe','MAG_CharismaCaster_Robe');
+ assert.equal(s.ac,13);assert.doesNotMatch(s.importSummary,/not a recognised armour type/);
+});
+test('a barbarian in clothing keeps her Constitution',()=>{
+ const s=clothed('Enraging Heart Garb','MAG_Barbarian_Magic_Armor_1',{classes:[{name:'Barbarian',subclass:'',level:9}]});
+ assert.equal(s.ac,17); // 10 + 3 Dexterity + 4 Constitution
+});
+test('a monk loses unarmoured defence the moment a shield is held',()=>{
+ const monk={classes:[{name:'Monk',subclass:'',level:9}]};
+ assert.equal(clothed('Simple Robe','ARM_Robe_Body',monk).ac,16); // 10 + 3 Dex + 3 Wis
+ assert.equal(clothed('Simple Robe','ARM_Robe_Body',{...monk,extra:[{name:'Iron-Banded Shield',stats:'ARM_Shield',slot:'Shield',count:1}]}).ac,15); // 10 + 3 + shield
+});
+test('the Defence fighting style needs armour, which clothing is not',()=>{
+ const s=clothed('Simple Robe','ARM_Robe_Body',{passives:['FightingStyle_Defense']});
+ assert.equal(s.ac,13);
+});
+test('a named heavy armour ignores Dexterity entirely',()=>{
+ const s=clothed("Reaper's Embrace",'MOO_Ketheric_Armor');
+ assert.equal(s.ac,19);assert.match(s.importSummary,/published value for Reaper's Embrace/);
+});
 test('named light armour is included in the shared AC calculation',()=>{const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');r.characters[i].abilities.dex=13;r.characters[i].equipped=[{stats:'GOB_DrowCommander_Leather_Armor',name:'Spidersilk Armour',slot:'Body',count:1}];const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,13);});
+// A status id carries its content prefix and, where it has one, its magnitude.
+// Neither belongs in what the sheet prints.
+test('a status name drops its region prefix, its magnitude and a doubled word',()=>{
+ assert.equal(statusName('AID_5'),'Aid');
+ assert.equal(statusName('MAG_CRITICAL_CRITICAL_EXECUTION'),'Critical Execution');
+ assert.equal(statusName('MOO_POTION_BLOODOPTION_ASTARION'),'Potion Bloodoption Astarion');
+ // A number that is part of the name is not a magnitude suffix.
+ assert.equal(statusName('TAD_PEACE_BREAKER'),'Peace Breaker');
+});
+test('a spell the game data cannot name is left out, and the count is reported',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.spells=[{id:'Guiding Bolt',name:'Guiding Bolt',category:'spell',level:1,prepared:true},
+  {id:'Target_Smite_Branding_Container_3',name:null,category:'spell',level:2,prepared:false},
+  {id:'Shout_Macro_Mods_Camp_Night_Utils',name:null,category:'spell',level:null,prepared:true}];
+ const {sheet}=adaptCharacter(r,0,blank());
+ assert.doesNotMatch(sheet.spells,/Target_Smite|Shout_Macro/);
+ assert.match(sheet.spells,/Guiding Bolt/);
+ assert.match(sheet.importSummary,/2 spell entries have no name in the game data/);
+});
+// A magic weapon holds its enhancement in the item, not in its display name.
+test('a named weapon contributes its enhancement and its extra damage ability',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:14,int:8,wis:10,cha:16};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];
+ c.equipped=[{name:'Titanstring Bow',stats:'MAG_StrongString_Longbow',slot:'Ranged Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ // +0 Dexterity, +4 proficiency, +1 enhancement to hit; +1 and +5 Strength to damage.
+ assert.equal(sheet.attacks,'Titanstring Bow: +5 to hit, 1d8 +6 piercing');
+ assert.equal(warnings.some(w=>/item bonus on/.test(w)),false);
+});
+test('an unlisted magic weapon keeps its figures but says they may be low',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:14,int:8,wis:10,cha:16};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];
+ c.equipped=[{name:'Blooded Greataxe',stats:'MAG_LowHP_IncreaseDamage_Greataxe',slot:'Melee Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ assert.match(sheet.attacks,/\+9 to hit, 1d12 \+5 slashing/);
+ assert.match(warnings.join(' '),/item bonus on Blooded Greataxe is not included/);
+});
+test('a plain weapon raises no doubt about a hidden enhancement',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:'Dagger',stats:'WPN_Dagger',slot:'Melee Main Weapon',count:1}];
+ assert.equal(adaptCharacter(r,i,blank()).warnings.some(w=>/item bonus on/.test(w)),false);
+});
+// An item the game data cannot name occupies a slot regardless, so its id is
+// read into words rather than printed as an identifier or dropped.
+test('an item with no name is read from its stats id, prefix and all',()=>{
+ assert.equal(itemLabel({stats:'UND_SharranCrossbow'}),'Sharran Crossbow');
+ assert.equal(itemLabel({stats:'FOR_SchoolOgres_Horn'}),'School Ogres Horn');
+ assert.equal(itemLabel({stats:'SHA_BrokenLever'}),'Broken Lever');
+ assert.equal(itemLabel({name:'Titanstring Bow',stats:'MAG_StrongString_Longbow'}),'Titanstring Bow');
+ assert.equal(itemLabel({stats:''}),'Unresolved item');
+});
+test('an unnamed item keeps its place in the equipped list',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:null,stats:'UND_SharranCrossbow',slot:'Ranged Main Weapon',count:1}];
+ const {sheet}=adaptCharacter(r,i,blank());
+ assert.match(sheet.equipment,/Sharran Crossbow \[Ranged Main Weapon\]/);
+ assert.doesNotMatch(sheet.equipment,/UND_/);
+});
+test('an unnamed weapon of a known base type still gets its attack line',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:10,dex:16,con:14,int:10,wis:10,cha:10};
+ c.proficiency_bonus=3;c.equipment_proficiencies=['Martial Weapons'];
+ c.equipped=[{name:null,stats:'UND_DeadInWater_HandCrossbow',slot:'Ranged Main Weapon',count:1}];
+ const {sheet}=adaptCharacter(r,i,blank());
+ assert.match(sheet.attacks,/^Dead In Water Hand Crossbow: \+6 to hit, 1d6 \+3 piercing/);
+});
+// A weapon whose base type is unknown used to leave no trace at all: its
+// attack line simply did not appear, which reads as an empty hand.
+test('an unrecognised weapon in a weapon slot is named rather than dropped',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:'Phalar Aluve',stats:'UND_SwordInStone',slot:'Melee Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ assert.equal(sheet.attacks,'');
+ assert.match(warnings.join(' '),/No attack line for Phalar Aluve/);
+ // The equipped list stays the record of it.
+ assert.match(sheet.equipment,/Phalar Aluve \[Melee Main Weapon\]/);
+});
+test('a shield in an offhand weapon slot is owed no attack line',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:'Shield of Devotion',stats:'MAG_BG_OfDevotion_Shield',slot:'Melee Offhand Weapon',count:1}];
+ assert.equal(adaptCharacter(r,i,blank()).warnings.some(w=>/No attack line/.test(w)),false);
+});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
 test('combat actions are kept out of the spell list',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'h',name:'Heroism',category:'spell',level:1,prepared:true},{id:'a',name:'Action Surge',category:'spell',level:null,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.match(s.spells,/Heroism/);assert.doesNotMatch(s.spells,/Action Surge/);assert.match(s.features,/Action Surge/);});
