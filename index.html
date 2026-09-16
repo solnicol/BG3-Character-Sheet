@@ -34,7 +34,7 @@ dialog{width:min(620px,calc(100% - 32px));max-height:85dvh;overflow:auto;border:
  .sheet:nth-of-type(2) .equipment-print::first-line{font-weight:700}
  .sheet:nth-of-type(2) .equipment-panel{height:auto;overflow:visible}
  .sheet:nth-of-type(2) .equipment-panel .equipment-group{break-inside:avoid}
- .sheet:nth-of-type(2) 
+ .sheet:nth-of-type(2)
  .sheet:nth-of-type(2) .textarea-value.tall{min-height:0}
 }
 
@@ -54,16 +54,20 @@ dialog{width:min(620px,calc(100% - 32px));max-height:85dvh;overflow:auto;border:
 @media print{.spellbook-layout{grid-template-columns:1.8fr 1fr;gap:10px;margin-bottom:10px}.inventory-layout{grid-template-columns:1fr 2fr;gap:14px}.spell-groups{gap:0 12px}.spell-groups li{font-size:9px;line-height:1.4}.spell-groups section{margin-bottom:6px}.equipment-group ul{font-size:9px;line-height:1.35}.equipment-group li{padding:1px 0}.spell-panel .legend{margin:0 0 6px}.equipment-group{margin:0}.slots-panel .slots{grid-template-columns:repeat(3,minmax(0,1fr))}.slots-panel .pact-slots{grid-template-columns:1fr}.imported [data-path="player"]{background:transparent}.spell-panel .visually-hidden+.print-value{display:none!important}}
 
 </style>
+<link rel="stylesheet" href="assets/workspace.css">
 <script src="assets/analytics.js" defer></script>
 </head>
 <body>
-<header class="toolbar"><div class="brand">Baldur’s Gate 3 <span style="color:var(--muted)">/ Character sheet</span></div><nav class="actions" aria-label="Sheet actions"><button id="new">New sheet</button><button id="import-bg3">Import BG3 save</button><button id="load">Load character</button><button id="save">Save character</button><button class="primary" id="print">Print / Save PDF</button></nav></header>
-<div class="intro"><span>Import a BG3 save to build your sheet. Add the player name; your sheet is saved in this browser.</span><span id="status" role="status" aria-live="polite">Ready</span></div>
+<a class="skip-link" href="#character">Skip to character sheet</a>
+<header class="toolbar"><div class="brand">Baldur’s Gate 3 <span>Character sheets</span></div><nav class="actions" aria-label="Sheet actions"><button id="import-bg3" class="primary">Import BG3 save</button><button id="print">Print / Save PDF</button><details class="sheet-menu"><summary>Manage sheet</summary><div class="sheet-menu-items"><button id="save">Download backup <small>Character JSON</small></button><button id="load">Open backup <small>JSON or legacy file</small></button><button id="new">New blank sheet</button></div></details></nav></header>
+<div class="welcome" id="welcome"><h1>Your character, on paper.</h1><p>Import a BG3 save, choose a character, then add the player’s name. Your save stays on your device.</p></div>
+<div class="workspace-bar"><nav aria-label="Sheet sections"><a href="#character">Character & combat</a><a href="#spellbook">Spells & inventory</a></nav><span id="status" role="status" aria-live="polite">Ready to import</span></div>
 <noscript>Please enable JavaScript to edit, calculate and save this character sheet.</noscript>
 <main id="app"></main>
 <input id="bg3-file" type="file" accept=".lsv" hidden>
-<dialog id="bg3-dialog" aria-labelledby="bg3-title"><h2 id="bg3-title">Import a BG3 save</h2><p>Your save is read locally in your browser.</p><p id="bg3-progress" role="status" aria-live="polite"></p><label class="field"><select id="bg3-characters" aria-label="Character to import"></select><span>Character</span></label><div id="bg3-review"></div><p>Importing replaces the current sheet. Cancel to save a backup first.</p><div class="actions"><button id="bg3-cancel">Cancel</button><button class="primary" id="bg3-confirm" disabled>Import selected character</button></div></dialog>
+<dialog id="bg3-dialog" aria-labelledby="bg3-title"><h2 id="bg3-title">Import a BG3 save</h2><p class="dialog-description">Read on your device. Your save is never uploaded.</p><p id="bg3-progress" role="status" aria-live="polite"></p><progress id="bg3-loading" aria-label="Reading save" hidden></progress><div id="bg3-selection" hidden><label class="field"><span>Choose a character</span><select id="bg3-characters" aria-label="Character to import"></select></label><div id="bg3-review"></div><p class="replace-notice">This replaces the current sheet. Download a backup first if you want to keep it.</p></div><div class="actions"><button id="bg3-cancel">Cancel</button><button id="bg3-retry" hidden>Choose another save</button><button class="primary" id="bg3-confirm" disabled>Import selected character</button></div></dialog>
 <script src="assets/bg3-import.js" defer></script>
+<script src="assets/workspace.js" defer></script>
 <details class="notes"><summary>Import and export information</summary><p>Save files are parsed locally in your browser. Save character downloads a JSON backup. Imported values reflect the parser's current coverage; selected proficiencies, inventory attribution and active combat bonuses are not yet fully recovered.</p><p>Ordinary spell slots and pact magic have separate rows. Print / Save PDF opens the browser's print dialogue. Disable headers and footers there. Long sheets may need more than two pages; inventory is preserved rather than clipped.</p></details>
 <input id="file" type="file" accept=".json,.txt,application/json,text/plain">
 <script>
@@ -136,9 +140,10 @@ ${area('attacks','Attacks & damage','medium')}${area('resources','Actions & reso
 ${equipmentPanel()}
 
 <footer class="sheet-foot"><span>Spells & equipment · <span data-name></span></span><span>2</span></footer></article>`;
-renderClasses();renderSubrace();calculate();resizeAll();
+renderClasses();renderSubrace();calculate();
  document.getElementById('app').classList.toggle('imported',Boolean(state.importSummary));
  if(state.importSummary)document.querySelectorAll('#app input,#app select,#app textarea').forEach(el=>{if(el.dataset.path==='player')return;if(el.tagName==='SELECT'||el.type==='checkbox')el.disabled=true;else el.readOnly=true;});
+ resizeAll();document.dispatchEvent(new Event('sheet-rendered'));
 }
 function renderClasses(){document.getElementById('classes').innerHTML=state.classes.map((c,i)=>`<div class="class-row">${select('classes.'+i+'.name',i===0?'Class':'Additional class',CLASSES)}${input('classes.'+i+'.level','Level','number','min="1" max="12"')}<button class="remove no-print" data-remove="${i}" aria-label="Remove class ${i+1}" ${state.classes.length===1?'disabled':''}>×</button></div>${input('classes.'+i+'.subclass','Subclass')}`).join('')+`<button class="small-button no-print" id="add-class" style="margin-top:8px" ${level(state)>=12?'disabled':''}>+ Add class</button>`}
 function renderSubrace(){const opts=RACES[state.race];document.getElementById('subrace').innerHTML=opts.length?select('subrace','Subrace',opts):'<span class="caption" style="display:block;padding-top:12px">No subrace</span>'}

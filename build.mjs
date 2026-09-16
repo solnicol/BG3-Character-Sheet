@@ -30,7 +30,7 @@ console.log('Built local save importer, parser worker, and analytics.');
 await rm('dist', {recursive:true,force:true});
 await mkdir('dist/assets', {recursive:true});
 await copyFile('index.html','dist/index.html');
-for (const name of ['bg3-import.js','bg3-worker.js','analytics.js']) await copyFile('assets/'+name,'dist/assets/'+name);
+for (const name of ['bg3-import.js','bg3-worker.js','analytics.js','workspace.css','workspace.js']) await copyFile('assets/'+name,'dist/assets/'+name);
 // Self-hosted fonts, with their licences, so the sheet needs no third-party
 // request and keeps working offline.
 await mkdir('dist/assets/fonts', {recursive:true});
