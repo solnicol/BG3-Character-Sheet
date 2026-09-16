@@ -4,6 +4,8 @@ import {build} from 'esbuild';
 import {resolveInventory} from '../src/inventory-ownership.mjs';
 const compiled=await build({entryPoints:['vendor/bg3-savefile-parser/ts/parser/src/lsmf.ts'],bundle:true,platform:'node',format:'esm',write:false});
 const {parseLsmfStackAmounts,parseLsmfStackGroups,parseLsmfInventories}=await import('data:text/javascript;base64,'+Buffer.from(compiled.outputFiles[0].text).toString('base64'));
+const compiledParty=await build({entryPoints:['vendor/bg3-savefile-parser/ts/parser/src/party.ts'],bundle:true,platform:'node',format:'esm',write:false});
+const {findCharacterNodeAt}=await import('data:text/javascript;base64,'+Buffer.from(compiledParty.outputFiles[0].text).toString('base64'));
 // Entirely synthetic heap: the last stack has two members and three entries.
 // The final entry lies outside the old, unadjusted descriptor bounds.
 function fixture(amount=1735){
@@ -52,4 +54,24 @@ test('live inventory decodes heap-relative owner lists, inline entries and type 
 test('out-of-range inventory owner pointers do not create another owner',()=>{
  const b=inventoryFixture();new DataView(b.buffer).setBigUint64(600,99999999n,true);
  assert.equal(parseLsmfInventories(b).some(c=>c.row===41),false);
+});
+
+// A party member standing on a surface carries TargetData bookkeeping nodes
+// that repeat its own Translate. Those are not rival characters, so the
+// position still identifies one character node and its inventory is attributed.
+function nodesAt(pos){
+ const nodes=[{name:'Characters',parent:-1,attrs:{},children:[1,4]},
+  {name:'Character',parent:0,attrs:{Translate:pos},children:[2]},
+  {name:'TargetData',parent:1,attrs:{},children:[3]},
+  {name:'SurfaceLayerCheck',parent:2,attrs:{Translate:pos},children:[]},
+  {name:'Character',parent:0,attrs:{Translate:[0,0,0]},children:[]}];
+ return nodes;
+}
+test('a character on a surface is still found at its own position',()=>{
+ const pos=[19.008907318115234,10.92578125,-185.4700927734375];
+ assert.equal(findCharacterNodeAt(nodesAt(pos),pos),1);
+});
+test('two characters sharing a position remain ambiguous',()=>{
+ const pos=[1,2,3],nodes=nodesAt(pos);nodes[4].attrs.Translate=pos;
+ assert.equal(findCharacterNodeAt(nodes,pos),null);
 });

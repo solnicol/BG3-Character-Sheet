@@ -130,7 +130,12 @@ export function findPartyCharacterNodes(
   return found;
 }
 
-/** The character node whose Translate equals pos exactly, or null. */
+/** The character node whose Translate equals pos exactly, or null.
+ *
+ * Only `Character` nodes are candidates. A character's own subtree holds
+ * bookkeeping nodes that repeat its Translate — `TargetData/SurfaceLayerCheck`
+ * among them — and counting those as rivals made a unique position look
+ * ambiguous, which left the character with no node and so no inventory. */
 export function findCharacterNodeAt(
   nodes: LsofNode[],
   pos: [number, number, number],
@@ -141,6 +146,7 @@ export function findCharacterNodeAt(
   const walk = (ni: number): void => {
     const t = nodes[ni]!.attrs.Translate;
     if (
+      nodes[ni]!.name === 'Character' &&
       Array.isArray(t) &&
       t.length === 3 &&
       t[0] === pos[0] &&
