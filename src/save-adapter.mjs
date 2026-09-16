@@ -18,11 +18,23 @@ const integer=(n,min=0,max=1000000)=>Number.isInteger(n)&&n>=min&&n<=max;
 // trailing engine qualifier. There is no display-name table in the vendored
 // game data, so the id is cleaned and title cased. This is a transcription of
 // the id, not a lookup: an unusual status may read a little raw.
-const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA)_/;
+// Larian prefixes a status with the content it belongs to. The regional ones
+// here are the prefixes gamedata.json itself uses on stats and spells, so a
+// status picked up at Moonrise reads 'Potion …' rather than 'Moo Potion …'.
+const STATUS_PREFIX=/^(MAG|TAD|CAMP|GOB|UNI|WPN|ARM|LOW|SHA|MOO|COL|FOR|UND|TWN|DEN|WYR|HAG|CRE)_/;
 const STATUS_QUALIFIER=/_(HIDDEN|TECHNICAL|APPLIER|STARTER|IGNORE_RESTING|DISPLAY|VFX|SFX)(?=_|$)/g;
 export function statusName(id){
- const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'').replace(/_+/g,'_').replace(/^_|_$/g,'');
- return core?core.split('_').map(w=>w[0]+w.slice(1).toLowerCase()).join(' '):'';
+ const core=String(id||'').replace(STATUS_PREFIX,'').replace(STATUS_QUALIFIER,'')
+  // A trailing number is the effect's magnitude, not part of its name: AID_5
+  // is Aid for five hit points, and the sheet already shows the game's own
+  // wording without it.
+  .replace(/_\d+$/,'')
+  .replace(/_+/g,'_').replace(/^_|_$/g,'');
+ if(!core)return '';
+ const words=core.split('_').map(w=>w[0]+w.slice(1).toLowerCase());
+ // Stripping the prefix can leave the same word twice, as MAG_CRITICAL_
+ // CRITICAL_EXECUTION does. Say it once.
+ return words.filter((w,i)=>i===0||w.toLowerCase()!==words[i-1].toLowerCase()).join(' ');
 }
 // Only the non-permanent entries reach the sheet; the permanent ones are the
 // item auras and carried-object flags the game's own panel leaves out.
@@ -227,8 +239,15 @@ export function adaptCharacter(report,index,template){
  const combatActions=/^(Action Surge|Flourish|Menacing Attack(?: \((?:Melee|Ranged)\))?|Piercing Shot|Piercing Strike|Second Wind|Sweeping Attack|Weakening Strike|Astral Knowledge|Fey Presence|Radiance of the Dawn|Turn Undead)$/i;
  // A spell can be present once for its class list, once for its subclass and
  // again in the prepared list. Merge those records before printing.
+ // A spell the game data cannot name is a technical container or a mod's own
+ // entry, never something the in-game spellbook shows. Printing its raw id
+ // puts 'Target_Smite_Branding_Container_3' on a printed sheet, so leave it
+ // out and say how many were left out rather than pretending the list is
+ // complete.
+ const unnamedSpells=spells.filter(s=>s.category==='spell'&&!s.name).length;
+ if(unnamedSpells)warnings.push(unnamedSpells+' spell '+(unnamedSpells===1?'entry has':'entries have')+' no name in the game data, so '+(unnamedSpells===1?'it is':'they are')+' not listed. Mod-added spells appear this way.');
  const uniqueSpells=new Map();
- for(const s of spells) if(s.category==='spell'&&!combatActions.test(String(s.name||''))){
+ for(const s of spells) if(s.category==='spell'&&s.name&&!combatActions.test(String(s.name))){
    const key=String(s.name||s.id||'').trim().toLowerCase();
    const prev=uniqueSpells.get(key);
    if(!prev || (s.prepared===true && prev.prepared!==true)) uniqueSpells.set(key,{...prev,...s,prepared:s.prepared===true||prev?.prepared===true});

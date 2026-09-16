@@ -71,6 +71,25 @@ test('a named heavy armour ignores Dexterity entirely',()=>{
  assert.equal(s.ac,19);assert.match(s.importSummary,/published value for Reaper's Embrace/);
 });
 test('named light armour is included in the shared AC calculation',()=>{const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');r.characters[i].abilities.dex=13;r.characters[i].equipped=[{stats:'GOB_DrowCommander_Leather_Armor',name:'Spidersilk Armour',slot:'Body',count:1}];const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,13);});
+// A status id carries its content prefix and, where it has one, its magnitude.
+// Neither belongs in what the sheet prints.
+test('a status name drops its region prefix, its magnitude and a doubled word',()=>{
+ assert.equal(statusName('AID_5'),'Aid');
+ assert.equal(statusName('MAG_CRITICAL_CRITICAL_EXECUTION'),'Critical Execution');
+ assert.equal(statusName('MOO_POTION_BLOODOPTION_ASTARION'),'Potion Bloodoption Astarion');
+ // A number that is part of the name is not a magnitude suffix.
+ assert.equal(statusName('TAD_PEACE_BREAKER'),'Peace Breaker');
+});
+test('a spell the game data cannot name is left out, and the count is reported',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.spells=[{id:'Guiding Bolt',name:'Guiding Bolt',category:'spell',level:1,prepared:true},
+  {id:'Target_Smite_Branding_Container_3',name:null,category:'spell',level:2,prepared:false},
+  {id:'Shout_Macro_Mods_Camp_Night_Utils',name:null,category:'spell',level:null,prepared:true}];
+ const {sheet}=adaptCharacter(r,0,blank());
+ assert.doesNotMatch(sheet.spells,/Target_Smite|Shout_Macro/);
+ assert.match(sheet.spells,/Guiding Bolt/);
+ assert.match(sheet.importSummary,/2 spell entries have no name in the game data/);
+});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
 test('combat actions are kept out of the spell list',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'h',name:'Heroism',category:'spell',level:1,prepared:true},{id:'a',name:'Action Surge',category:'spell',level:null,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.match(s.spells,/Heroism/);assert.doesNotMatch(s.spells,/Action Surge/);assert.match(s.features,/Action Surge/);});
