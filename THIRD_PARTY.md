@@ -10,6 +10,8 @@ Armour class is derived by matching the equipped body armour to its family. `gam
 
 Position lookup for a party member without a recognised template considers only `Character` nodes. A character's own subtree repeats its Translate on bookkeeping nodes such as `TargetData/SurfaceLayerCheck`, and counting those as rivals made a unique position look ambiguous, so a second custom player standing on a surface was left with no character node and therefore no equipment, inventory or conditions.
 
+Ownerlist record offsets take the same 48-byte heap base as every other pointer in the blob. Read raw, each component's ownerlist starts twelve entries early: it opens with the tail of the previous component's list and loses its own last twelve entities. Those are the highest entity rows, which is where a multiplayer save puts its custom player characters, so `game.stats.v3.StatsComponent` had no owner for them and their ability scores could not be attached. Hit points survived because `HealthComponent` is long enough that its own twelve-entry loss falls elsewhere. Corrected, every ownerlist reads as a complete `0..rowCount-1`; in the reference multiplayer save the change is strictly additive, adding ability scores for both custom players and altering nothing else for any character.
+
 Local inventory changes correct the 48-byte heap base for stack tables, stack groups, container tables and owner lists. Container kind is read through DataComponent into the Type pool; equipped and carried membership is determined by containers rather than item names. Stack counts are summed per member, including final records and stacks of one.
 
 No upstream licence file was found in this checkout. Redistribution permission must be established before publishing the vendored parser.

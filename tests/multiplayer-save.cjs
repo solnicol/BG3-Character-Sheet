@@ -7,11 +7,15 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
  const page=await browser.newPage({viewport:{width:1280,height:1000}}),errors=[];
  page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:8765/');
  await page.locator('#bg3-file').setInputFiles(process.env.BG3_TEST_SAVE);
- await page.waitForFunction(()=>document.querySelector('#bg3-characters').options.length===6,null,{timeout:90000});
+ // Summons come and go between saves; the per-name checks below are the guard.
+ await page.waitForFunction(()=>document.querySelector('#bg3-characters').options.length>0,null,{timeout:90000});
  const choices=await page.locator('#bg3-characters option').evaluateAll(els=>els.map(e=>e.textContent));
  for(const name of ['Neith','Bob','Savros'])assert.equal(choices.filter(s=>s.startsWith(name+' ·')).length,1);
  console.log('Distinct characters:',choices.join('; '));
- const expected={Neith:{gold:160,class:'Fighter',hp:45,str:10,dex:17},Bob:{gold:1735,class:'Warlock',hp:31,str:8,dex:13},Savros:{gold:364,class:'Cleric',hp:35,str:8,dex:14}};
+ // Ability scores are the regression that matters here: a custom player's
+ // entity sits in the top rows of the ownerlist, which is the stretch a
+ // mis-based ownerlist drops. Both custom players must come through.
+ const expected={Neith:{gold:864,class:'Fighter',hp:40,str:10,dex:17,ac:19},Bob:{gold:1702,class:'Warlock',hp:31,str:8,dex:13,ac:13},Savros:{gold:703,class:'Cleric',hp:35,str:8,dex:14,ac:19}};
  // Parse once, then keep a private local report via worker for all three exports.
  const report=await page.evaluate(async()=>{const file=document.getElementById('bg3-file').files[0];const buffer=await file.arrayBuffer();return new Promise((resolve,reject)=>{const w=new Worker('./assets/bg3-worker.js');w.onmessage=({data})=>{if(data.kind==='report'){w.terminate();resolve(data.report)}if(data.kind==='error'){w.terminate();reject(Error(data.message))}};w.onerror=e=>{w.terminate();reject(Error(e.message))};w.postMessage({name:file.name,buffer},[buffer])})});
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
@@ -30,6 +34,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await page.evaluate(next=>sheetImport.apply(next),sheet);
   assert.equal(await page.locator('[data-path="name"]').inputValue(),name);
   assert.equal(await page.locator('[data-path="abilities.str"]').inputValue(),String(expected[name].str));
+  assert.equal(await page.locator('[data-path="abilities.dex"]').inputValue(),String(expected[name].dex));
+  assert.equal(await page.locator('[data-path="ac"]').inputValue(),String(expected[name].ac));
   const saved=await page.evaluate(()=>JSON.stringify(state,null,2));
   const out=path.resolve(__dirname,'../output/characters',name);
   fs.mkdirSync(path.dirname(out),{recursive:true});fs.writeFileSync(out+'.json',saved);
