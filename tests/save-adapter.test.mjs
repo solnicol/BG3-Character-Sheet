@@ -101,3 +101,15 @@ test('AC is derived from the live armour loadout when the saved snapshot is stal
  const r=structuredClone(report),c=r.characters[0];c.abilities={str:8,dex:13};c.armour_class=11;c.equipped=[{name:'Spidersilk Armour',slot:'Breast'}];
  assert.equal(adaptCharacter(r,0,blank()).sheet.ac,13);
 });
+test('camp clothing before combat armour never changes AC',()=>{
+ for(const [name,stats,dex,shield,expected] of [
+  ['Spidersilk Armour','GOB_DrowCommander_Leather_Armor',13,null,13],
+  ['Breastplate +1','ARM_Breastplate_Body_1',14,'Safeguard Shield',19],
+  ['Scale Mail +1','ARM_ScaleMail_Body_1',17,"Absolute's Warboard",19]
+ ]){
+  const r=structuredClone(report),c=r.characters[0];c.armour_class=null;c.abilities.dex=dex;c.selected_passives=[];
+  c.equipped=[{name:'Camp clothes',stats:'ARM_Camp_Body',slot:'VanityBody'},{name,stats,slot:'Breast'},...(shield?[{name:shield,slot:'Melee Offhand Weapon'}]:[])];
+  assert.equal(adaptCharacter(r,0,blank()).sheet.ac,expected,name);
+  c.equipped.reverse();assert.equal(adaptCharacter(r,0,blank()).sheet.ac,expected,name+' reordered');
+ }
+});

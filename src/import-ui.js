@@ -6,11 +6,16 @@ const info=document.getElementById('bg3-progress');
 const choices=document.getElementById('bg3-characters');
 const confirmButton=document.getElementById('bg3-confirm');
 const review=document.getElementById('bg3-review');
+const selectionPanel=document.getElementById('bg3-selection');
+const loading=document.getElementById('bg3-loading');
+const retry=document.getElementById('bg3-retry');
+function phase(value){loading.hidden=value!=='reading';selectionPanel.hidden=value!=='ready';retry.hidden=value!=='error';confirmButton.hidden=value!=='ready';dialog.setAttribute('aria-busy',String(value==='reading'));}
 let worker=null,timer=null,report=null,job=0;
 function stop(){job++;worker?.terminate();worker=null;clearTimeout(timer);timer=null;button.disabled=false;}
-function fail(message){stop();info.textContent=message;info.classList.add('error');confirmButton.disabled=true;}
+function fail(message){stop();phase('error');info.textContent=message;info.classList.add('error');confirmButton.disabled=true;retry.focus();}
 button.addEventListener('click',()=>{if(window.sheetImport.isValid())fileInput.click()});
 function dismiss(){stop();report=null;choices.replaceChildren();fileInput.value='';dialog.close();}
+retry.addEventListener('click',()=>{dismiss();fileInput.click()});
 document.getElementById('bg3-cancel').addEventListener('click',dismiss);
 dialog.addEventListener('cancel',e=>{e.preventDefault();dismiss()});
 dialog.addEventListener('close',()=>{if(dialog.open)return;stop();report=null;choices.replaceChildren();fileInput.value=''});
@@ -21,14 +26,14 @@ function selection(){
   const {sheet,warnings,missing}=adaptCharacter(report,Number(choices.value),window.sheetImport.blank());
   const summary=document.createElement('p');summary.textContent=`${sheet.name} · ${sheet.subrace||sheet.race} · ${sheet.classes.map(c=>c.name+' '+c.level).join(' / ')}`;review.append(summary);
   const detail=document.createElement('p');detail.textContent='Imports recovered ability scores, HP, equipment, spells, resources and feat choices. '+missing;review.append(detail);
-  for(const warning of warnings){const p=document.createElement('p');p.textContent=warning;review.append(p)}
+  if(warnings.length){const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Import details ('+warnings.length+')';details.append(summary);for(const warning of warnings){const p=document.createElement('p');p.textContent=warning;details.append(p)}review.append(details)}
   confirmButton.disabled=false;
  }catch(e){review.textContent=e.message;}
 }
 choices.addEventListener('change',selection);
 fileInput.addEventListener('change',async()=>{
  const file=fileInput.files[0];if(!file)return;
- stop();const token=job;report=null;choices.replaceChildren();review.replaceChildren();confirmButton.disabled=true;info.classList.remove('error');info.textContent='Reading '+file.name+'…';dialog.showModal();button.disabled=true;
+ stop();const token=job;report=null;choices.replaceChildren();review.replaceChildren();confirmButton.disabled=true;phase('reading');info.classList.remove('error');info.textContent='Reading '+file.name+'…';dialog.showModal();button.disabled=true;
  if(!/\.lsv$/i.test(file.name)){fail('Choose a Baldur’s Gate 3 .lsv save file.');return}
  if(file.size>100*1024*1024){fail('This save exceeds the 100 MB import limit.');return}
  if(location.protocol==='file:'){fail('BG3 save import needs the local preview. Run npm start in the project folder, then open http://127.0.0.1:8765/.');return}
@@ -41,7 +46,7 @@ fileInput.addEventListener('change',async()=>{
    if(data.kind==='progress'){info.textContent=data.message;return}
    if(data.kind==='error'){fail('Could not read this save: '+data.message);return}
    if(data.kind==='report'){
-    report=data.report;stop();info.textContent=`${file.name} · ${report.characters.length} characters recovered. Choose one to import.`;
+    report=data.report;stop();phase('ready');info.textContent=`${report.characters.length} characters found. Choose one to create your sheet.`;
     report.characters.forEach((c,i)=>{const option=document.createElement('option');option.value=String(i);option.textContent=`${c.name} · level ${c.level} · ${c.at_camp?'Camp':'Party'}`;choices.append(option)});
     // Prefer an importable character, but leave all entries visible with reasons.
     const first=report.characters.findIndex(c=>{try{characterClasses(c);return true}catch{return false}});if(first>=0)choices.value=String(first);
@@ -53,5 +58,5 @@ fileInput.addEventListener('change',async()=>{
 });
 confirmButton.addEventListener('click',()=>{
  if(!report)return;
- try{const {sheet}=adaptCharacter(report,Number(choices.value),window.sheetImport.blank());window.sheetImport.apply(sheet);dismiss();window.sheetImport.status('Imported '+sheet.name+'. Review the fields marked ?.');}catch(e){review.textContent=e.message;confirmButton.disabled=true}
+ try{const {sheet}=adaptCharacter(report,Number(choices.value),window.sheetImport.blank());window.sheetImport.apply(sheet);dismiss();window.sheetImport.status('Imported '+sheet.name+' · saved in this browser');document.querySelector('[data-path="player"]')?.focus();}catch(e){review.textContent=e.message;confirmButton.disabled=true}
 });

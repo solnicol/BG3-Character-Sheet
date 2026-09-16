@@ -42,15 +42,13 @@ export function adaptCharacter(report,index,template){
  const resources=c.resources||[];
  const movement=resources.find(r=>r.guid==='d6b2369d-84f0-4ca4-a3a7-62d2d192a185');
  out.speed=movement&&Number.isFinite(movement.max)&&movement.max>=0&&movement.max<=1000?movement.max:'';
- // Reconstruct AC from the live loadout. The parser's armour_class field can
- // be a stale ECS snapshot (for example Bob's save reports 11 while his
- // equipped Spidersilk Armour gives 12 + 1 Dexterity = 13). Keep the saved
- // total only as a fallback when the loadout is not recoverable.
+ // Resolve the combat body slot exactly: VanityBody is camp clothing.
+ // Keep an explicit saved total as a fallback for unsupported armour.
  const wornItems=c.equipped||[];
  const passives=new Set(c.selected_passives||[]);
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
-   const armourItem=wornItems.find(i=>/Body|Breast/i.test(i.slot||''))||wornItems.find(i=>/ARM_|Armor/i.test(i.stats||'')&&!/Helmet|Glove|Boot|Hat/i.test(i.stats||''));
+   const armourItem=wornItems.find(i=>/^(Body|Breast)$/i.test(i.slot||''))||wornItems.find(i=>!i.slot&&!/Camp|Underwear|Helmet|Glove|Boot|Hat/i.test(i.stats||'')&&/ARM_|Armor/i.test(i.stats||''));
    const armourText=`${armourItem?.name||''} ${armourItem?.stats||''}`;
    const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale Mail|ScaleMail/i,14,2],[/Studded Leather|Studded/i,12,Infinity],[/Leather/i,11,Infinity],[/Plate/i,18,0],[/Splint/i,17,0],[/Chain Mail|ChainMail/i,16,0],[/Chain Shirt|ChainShirt/i,13,2],[/Hide/i,12,2],[/Ring Mail|RingMail/i,14,0]];
    const match=armourBases.find(([pattern])=>pattern.test(armourText));

@@ -26,4 +26,4 @@ console.log('Built local save importer and parser worker.');
 await rm('dist', {recursive:true,force:true});
 await mkdir('dist/assets', {recursive:true});
 await copyFile('index.html','dist/index.html');
-for (const name of ['bg3-import.js','bg3-worker.js']) await copyFile('assets/'+name,'dist/assets/'+name);
+for (const name of ['bg3-import.js','bg3-worker.js','workspace.css','workspace.js']) await copyFile('assets/'+name,'dist/assets/'+name);

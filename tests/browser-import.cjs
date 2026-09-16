@@ -39,7 +39,8 @@ const fs=require('node:fs');
  assert.equal(await page.locator('[data-path="skills.Perception"]').isDisabled(),true);
  assert.equal(await page.locator('[data-path="name"]').getAttribute('readonly'),'');
  await page.locator('[data-path="player"]').fill('Player');
- const dl=page.waitForEvent('download');await page.getByRole('button',{name:'Save character',exact:true}).click();await(await dl).saveAs('/tmp/bg3-imported.json');
+ await page.locator('.sheet-menu summary').click();
+ const dl=page.waitForEvent('download');await page.locator('#save').click();await(await dl).saveAs('/tmp/bg3-imported.json');
  const json=JSON.parse(fs.readFileSync('/tmp/bg3-imported.json','utf8'));assert.match(json.importSummary,/quicksave_469/);assert.equal(json.hp,62);
  // Full populated PDF: last equipment and spell lines must survive printing.
  fs.writeFileSync('/tmp/bg3-print-expected.json',JSON.stringify({equipment:equipment.split('\n').at(-1),spell:(await page.locator('[data-path="spells"]').inputValue()).split('\n').at(-1)}));
