@@ -1,4 +1,4 @@
-import {weaponProperties} from './weapon-data.mjs';
+import {weaponProperties,weaponEnhancementUnknown} from './weapon-data.mjs';
 // Explicit translation from the pinned parser's report to the editable sheet.
 export const PARSER_REVISION='9578ff7c46a1aa40c805f6b7beecf907f10fb3b8';
 const CLASSES=['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard'];
@@ -226,11 +226,19 @@ export function adaptCharacter(report,index,template){
    const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
    const die=twoHanded?(w.die==='1d6'?'1d8':'1d10'):w.die;
    const duelling=!twoHanded&&!ranged&&passives.has('FightingStyle_Dueling')&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||'')&&weaponProperties(x))&&!/Great|Maul|Glaive|Halberd|Pike/.test(w.name)?2:0;
-   const damageMod=m===null?null:damageAbility+w.enhancement+archeryGloves+duelling+(allIn?10:0);
+   // A weapon that adds a second ability's modifier to its damage, such as the
+   // Titanstring Bow's Strength, never gives less than the floor it guarantees.
+   const extra=w.extra?Math.max(w.extraMin,modifier(out.abilities[w.extra])??w.extraMin):0;
+   const damageMod=m===null?null:damageAbility+w.enhancement+extra+archeryGloves+duelling+(allIn?10:0);
    const sign=n=>n>=0?'+'+n:String(n);
    return `${i.name||i.stats}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}`;
  });
  out.attacks=attackLines.join('\n');
+ // An enhancement the sheet cannot see makes every figure on a weapon's line
+ // one or two low. Saying which weapons that applies to is better than a
+ // number that looks settled.
+ const uncertainWeapons=attackItems.filter(weaponEnhancementUnknown).map(i=>i.name||i.stats);
+ if(uncertainWeapons.length)warnings.push('Any item bonus on '+uncertainWeapons.join(', ')+' is not included: the enhancement is held in the item rather than its name, so attack and damage may be understated.');
  const gold=(c.carried||[]).filter(i=>['OBJ_GoldCoin','OBJ_GoldPile'].includes(i.stats));
  out.gold=gold.length&&gold.every(i=>i.count_known!==false&&integer(i.count))?gold.reduce((sum,i)=>sum+i.count,0):'';
  out.features=(c.feats||[]).map(f=>`${f.name||f.guid} (level ${f.level})${f.picks?.length?': '+f.picks.join(', '):''}`).join('\n');

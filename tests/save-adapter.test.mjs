@@ -90,6 +90,31 @@ test('a spell the game data cannot name is left out, and the count is reported',
  assert.match(sheet.spells,/Guiding Bolt/);
  assert.match(sheet.importSummary,/2 spell entries have no name in the game data/);
 });
+// A magic weapon holds its enhancement in the item, not in its display name.
+test('a named weapon contributes its enhancement and its extra damage ability',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:14,int:8,wis:10,cha:16};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];
+ c.equipped=[{name:'Titanstring Bow',stats:'MAG_StrongString_Longbow',slot:'Ranged Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ // +0 Dexterity, +4 proficiency, +1 enhancement to hit; +1 and +5 Strength to damage.
+ assert.equal(sheet.attacks,'Titanstring Bow: +5 to hit, 1d8 +6 piercing');
+ assert.equal(warnings.some(w=>/item bonus on/.test(w)),false);
+});
+test('an unlisted magic weapon keeps its figures but says they may be low',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:14,int:8,wis:10,cha:16};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];
+ c.equipped=[{name:'Blooded Greataxe',stats:'MAG_LowHP_IncreaseDamage_Greataxe',slot:'Melee Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ assert.match(sheet.attacks,/\+9 to hit, 1d12 \+5 slashing/);
+ assert.match(warnings.join(' '),/item bonus on Blooded Greataxe is not included/);
+});
+test('a plain weapon raises no doubt about a hidden enhancement',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.equipped=[{name:'Dagger',stats:'WPN_Dagger',slot:'Melee Main Weapon',count:1}];
+ assert.equal(adaptCharacter(r,i,blank()).warnings.some(w=>/item bonus on/.test(w)),false);
+});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
 test('combat actions are kept out of the spell list',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'h',name:'Heroism',category:'spell',level:1,prepared:true},{id:'a',name:'Action Surge',category:'spell',level:null,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.match(s.spells,/Heroism/);assert.doesNotMatch(s.spells,/Action Surge/);assert.match(s.features,/Action Surge/);});
