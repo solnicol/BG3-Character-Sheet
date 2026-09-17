@@ -65,6 +65,19 @@ export const NAMED_WEAPONS=new Map([
  // Firestoker reads 'Enchantment: None'; its 1d4 applies only to a burning
  // target, so the zero is the whole of it.
  ['MAG_Fire_IncreasePiercingDamageToBurning_HandCrossbow',{name:'Firestoker',enhancement:0}],
+ ['MAG_Cold_IncreaseColdDamageOnCast_Staff',{name:'Mourning Frost',enhancement:1}],
+ ['MAG_TheThorns_Trident',{name:'Nyrulna',enhancement:3}],
+ ['MAG_Githborn_Mindcrusher_Greatsword',{name:'Soulbreaker Greatsword',enhancement:1}],
+ ['MAG_SHA_SeluneBlessing_Spear',{name:"Selûne's Spear of Night",enhancement:3}],
+ // Both read 'Enchantment: None'.
+ ['MAG_ChargedLightning_Quarterstaff',{name:'The Spellsparkler',enhancement:0}],
+ ['DEN_TunnelStaff',{name:"Nature's Snare",base:'Quarterstaff',enhancement:0}],
+ // Melee Caster: these two roll attack and damage on the wielder's
+ // spellcasting modifier rather than the Dexterity or Strength their family
+ // would use, which is the difference between a scimitar swung by a druid's
+ // Wisdom and one swung by her arm.
+ ['ORI_Wyll_Infernal_Rapier',{name:'Infernal Rapier',enhancement:2,ability:'spell'}],
+ ['MAG_HAV_Sylvan_Scimitar',{name:'Sylvan Scimitar',enhancement:1,ability:'spell'}],
 ]);
 // An equipped weapon that is not a plain WPN_ entry, carries no +N in its name
 // and is not listed above may hold an enhancement the sheet cannot see.

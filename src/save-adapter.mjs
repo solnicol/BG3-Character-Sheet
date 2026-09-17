@@ -117,6 +117,13 @@ export function adaptCharacter(report,index,template){
  const out=structuredClone(template),warnings=[];
  out.name=text(c.name).replace(/ \(player\)$/,'')||'Unnamed character';
  out.classes=characterClasses(c);
+ // The parser fills spellcasting_ability for the active party but not for camp
+ // companions, so a camp druid arrives without one. A single class settles it,
+ // which is enough for every full caster; a multiclass character is left alone
+ // rather than guessed at.
+ const CASTING_ABILITY={Bard:'cha',Sorcerer:'cha',Warlock:'cha',Paladin:'cha',Cleric:'wis',Druid:'wis',Ranger:'wis',Wizard:'int'};
+ const spellAbility=text(c.spellcasting_ability)
+  ||(out.classes.length===1?(CASTING_ABILITY[out.classes[0].name]??''):'');
  const race=RACES[c.race];[out.race,out.subrace]=race||['Not recovered',''];
   if(!race)warnings.push('Race not recognised: '+(c.race||'unavailable')+'.');
  for(const a of ABILITIES){out.abilities[a]=integer(c.abilities?.[a],1,30)?c.abilities[a]:'';out.saves[a]=c.saving_throw_proficiencies?.includes(a)??null;}
@@ -224,7 +231,11 @@ export function adaptCharacter(report,index,template){
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
  const attackLines=attackItems.map(i=>{
    const w=weaponProperties(i),str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
-   const m=w.ability==='finesse'?(str===null||dex===null?null:Math.max(str,dex)):w.ability==='dex'?dex:str;
+   // A Melee Caster weapon rolls on the spellcasting modifier instead. Without
+   // a recovered spellcasting ability there is no figure to give, and the line
+   // says so rather than quietly falling back to the arm that is not swinging.
+   const m=w.ability==='spell'?(Object.hasOwn(out.abilities,spellAbility)?modifier(out.abilities[spellAbility]):null)
+     :w.ability==='finesse'?(str===null||dex===null?null:Math.max(str,dex)):w.ability==='dex'?dex:str;
    const proficiencies=c.equipment_proficiencies;
    const ranged=w.ability==='dex',archery=ranged&&passives.has('FightingStyle_Archery')?2:0;
    const archeryGloves=ranged&&wornItems.some(x=>x.stats==='UNI_ARM_OfArchery_Gloves')?2:0;
@@ -292,7 +303,7 @@ export function adaptCharacter(report,index,template){
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');
  if(c.equipment_note)warnings.push('Equipment: '+c.equipment_note+'.');
  if(!c.feats)warnings.push('Feat choices were not recovered; an empty list does not mean no feats.');
- out.spellAbility=text(c.spellcasting_ability)||'';
+ out.spellAbility=spellAbility;
  out.importSummary='Imported from '+text(report.source)+'. '+warnings.join(' ');
  // These are deliberately left as clean writing areas. Save metadata and
  // parser diagnostics belong in the import notice, never in the character's

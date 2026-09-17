@@ -216,6 +216,33 @@ test('a listed enchantment reaches the attack line and clears the note',()=>{
  assert.equal(sheet.attacks,'Blooded Greataxe: +10 to hit, 1d12 +6 slashing');
  assert.equal(warnings.some(w=>/item bonus on/.test(w)),false);
 });
+// Melee Caster rolls a weapon on the spellcasting modifier instead of the
+// ability its family would use.
+function meleeCaster(over={}){
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:10,dex:14,con:10,int:10,wis:20,cha:10};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+ c.spellcasting_ability=over.spellcasting_ability===undefined?'wis':over.spellcasting_ability;
+ if(over.classes)c.class_levels=over.classes;
+ c.equipped=[{name:'Sylvan Scimitar',stats:'MAG_HAV_Sylvan_Scimitar',slot:'Melee Main Weapon',count:1}];
+ return adaptCharacter(r,i,blank()).sheet;
+}
+test('a Melee Caster weapon rolls on the spellcasting modifier, not Dexterity',()=>{
+ // +5 Wisdom rather than +2 Dexterity, +4 proficiency, +1 enchantment.
+ assert.equal(meleeCaster().attacks,'Sylvan Scimitar: +10 to hit, 1d6 +6 slashing');
+});
+test('a camp druid gets her casting ability from her class when the save omits it',()=>{
+ const sheet=meleeCaster({spellcasting_ability:null,classes:[{name:'Druid',subclass:'',level:9}]});
+ assert.equal(sheet.spellAbility,'wis');
+ assert.equal(sheet.attacks,'Sylvan Scimitar: +10 to hit, 1d6 +6 slashing');
+});
+test('a Melee Caster weapon withholds its figures when no casting ability is known',()=>{
+ // A multiclass character with nothing recorded is not guessed at.
+ const sheet=meleeCaster({spellcasting_ability:null,
+  classes:[{name:'Fighter',subclass:'',level:5},{name:'Rogue',subclass:'',level:4}]});
+ assert.equal(sheet.spellAbility,'');
+ assert.match(sheet.attacks,/Sylvan Scimitar: \? to hit, 1d6 \+ \?/);
+});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
 test('combat actions are kept out of the spell list',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'h',name:'Heroism',category:'spell',level:1,prepared:true},{id:'a',name:'Action Surge',category:'spell',level:null,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.match(s.spells,/Heroism/);assert.doesNotMatch(s.spells,/Action Surge/);assert.match(s.features,/Action Surge/);});
