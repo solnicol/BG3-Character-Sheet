@@ -4,8 +4,20 @@ const weapons = [
  ['Longbow','1d8','piercing','dex','Martial'],['Shortbow','1d6','piercing','dex','Simple'],
  ['Rapier','1d8','piercing','finesse','Martial'],['Shortsword','1d6','piercing','finesse','Martial'],['Scimitar','1d6','slashing','finesse','Martial'],['Dagger','1d4','piercing','finesse','Simple'],
  ['Greatsword','2d6','slashing','str','Martial'],['Longsword','1d8','slashing','str','Martial'],['Greataxe','1d12','slashing','str','Martial'],['Battleaxe','1d8','slashing','str','Martial'],['Handaxe','1d6','slashing','str','Simple'],
- ['Warhammer','1d8','bludgeoning','str','Martial'],['Light Hammer','1d4','bludgeoning','str','Simple'],['Maul','2d6','bludgeoning','str','Martial'],['Mace','1d6','bludgeoning','str','Simple'],['Quarterstaff','1d6','bludgeoning','str','Simple'],['Spear','1d6','piercing','str','Simple'],['Javelin','1d6','piercing','str','Simple'],['Club','1d4','bludgeoning','str','Simple']
+ ['Warhammer','1d8','bludgeoning','str','Martial'],['Light Hammer','1d4','bludgeoning','str','Simple'],['Maul','2d6','bludgeoning','str','Martial'],['Mace','1d6','bludgeoning','str','Simple'],['Quarterstaff','1d6','bludgeoning','str','Simple'],['Spear','1d6','piercing','str','Simple'],['Javelin','1d6','piercing','str','Simple'],['Club','1d4','bludgeoning','str','Simple'],
+ // Polearms and the rest, each checked against its published stat block.
+ // gamedata.json agrees on the grip: all 11 glaives and all 12 halberds it
+ // lists are flagged two-handed, and none of the tridents, war picks or
+ // sickles are.
+ ['Glaive','1d10','slashing','str','Martial'],['Halberd','1d10','slashing','str','Martial'],
+ ['Trident','1d6','piercing','str','Martial'],['War Pick','1d8','piercing','str','Martial'],
+ ['Sickle','1d4','slashing','str','Simple']
 ];
+// Larian spells the quarterstaff three ways across its identifiers: the
+// ordinary Quarterstaff, a bare Staff, and a Quaterstaff typo. All three are
+// the same weapon, and 20 entries in gamedata.json use one of the latter two.
+// Checked only after the table above, so a real family always wins.
+const QUARTERSTAFF=/Quaterstaff|\bStaff\b/i;
 // A magic weapon carries its enhancement in the item, not in its display name,
 // so the +N read off the name below finds nothing for it. Each entry here is
 // taken from the weapon's published stat block and keyed on the stats ID, which
@@ -16,6 +28,20 @@ export const NAMED_WEAPONS=new Map([
  // Titanstring Bow: a +1 longbow whose Titan Weapon property adds the wielder's
  // Strength modifier to damage, never less than 1.
  ['MAG_StrongString_Longbow',{name:'Titanstring Bow',enhancement:1,extra:'str',extraMin:1}],
+ // `base` names the weapon this is built on, for the items whose identifier
+ // says nothing about it, and `ability` overrides how the attack is rolled.
+ //
+ // Phalar Aluve: a +1 longsword, and finesse, which an ordinary longsword is
+ // not. Its identifier, UND_SwordInStone, names the puzzle rather than the
+ // weapon.
+ ['UND_SwordInStone',{name:'Phalar Aluve',base:'Longsword',enhancement:1,ability:'finesse'}],
+ // Sharran Crossbow: a light crossbow, and shown as 'Light Crossbow +1' until
+ // a History check reveals the name the save stores. The revealed name is the
+ // one that loses the +1.
+ ['UND_SharranCrossbow',{name:'Sharran Crossbow',base:'Light Crossbow',enhancement:1}],
+ // Least Expected: a shortbow. Its +1d4 applies only while its wielder is
+ // obscured, so it is a condition rather than an enhancement and scores as 0.
+ ['MAG_Shadow_Blinding_Bow',{name:'Least Expected',base:'Shortbow',enhancement:0}],
 ]);
 // An equipped weapon that is not a plain WPN_ entry, carries no +N in its name
 // and is not listed above may hold an enhancement the sheet cannot see.
@@ -26,10 +52,12 @@ export function weaponEnhancementUnknown(item){
 export function weaponProperties(item) {
  const aliases={DEN_TunnelStaff:'Quarterstaff',UNI_Entangle_Quarterstaff:'Quarterstaff',DEN_Entrap_Quarterstaff:'Quarterstaff'};
  const label=`${item.name||''} ${item.stats||''} ${aliases[item.stats]||''}`.replaceAll('_',' ');
- const row=weapons.find(([name])=>new RegExp(`\\b${name.replaceAll(' ','\\s*')}\\b`,'i').test(label));
- if(!row)return null;
  const named=NAMED_WEAPONS.get(item.stats);
- return {name:row[0],die:row[1],damage:row[2],ability:row[3],group:row[4],
+ const row=(named?.base?weapons.find(([name])=>name===named.base):undefined)
+  ?? weapons.find(([name])=>new RegExp(`\\b${name.replaceAll(' ','\\s*')}\\b`,'i').test(label))
+  ?? (QUARTERSTAFF.test(label)?weapons.find(([name])=>name==='Quarterstaff'):undefined);
+ if(!row)return null;
+ return {name:row[0],die:row[1],damage:row[2],ability:named?.ability??row[3],group:row[4],
   enhancement:named?named.enhancement:Number((item.name||'').match(/\+(\d+)\b/)?.[1]||0),
   extra:named?.extra??null,extraMin:named?.extraMin??0};
 }

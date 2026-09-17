@@ -234,7 +234,7 @@ export function adaptCharacter(report,index,template){
    const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery-(allIn?5:0);
    const offhand=/Offhand/.test(i.slot||'');
    const damageAbility=offhand&&m>0&&!passives.has('FightingStyle_TwoWeaponFighting')?0:m;
-   const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
+   const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer','Trident'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
    const die=twoHanded?(w.die==='1d6'?'1d8':'1d10'):w.die;
    const duelling=!twoHanded&&!ranged&&passives.has('FightingStyle_Dueling')&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||'')&&weaponProperties(x))&&!/Great|Maul|Glaive|Halberd|Pike/.test(w.name)?2:0;
    // A weapon that adds a second ability's modifier to its damage, such as the

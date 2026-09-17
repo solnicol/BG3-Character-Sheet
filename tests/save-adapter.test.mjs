@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions,itemLabel} from '../src/save-adapter.mjs';
+import {weaponProperties} from '../src/weapon-data.mjs';
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
@@ -143,17 +144,45 @@ test('an unnamed weapon of a known base type still gets its attack line',()=>{
 // attack line simply did not appear, which reads as an empty hand.
 test('an unrecognised weapon in a weapon slot is named rather than dropped',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
- c.equipped=[{name:'Phalar Aluve',stats:'UND_SwordInStone',slot:'Melee Main Weapon',count:1}];
+ c.equipped=[{name:'Mystery Blade',stats:'MAG_Unknown_Mystery_Weapon',slot:'Melee Main Weapon',count:1}];
  const {sheet,warnings}=adaptCharacter(r,i,blank());
  assert.equal(sheet.attacks,'');
- assert.match(warnings.join(' '),/No attack line for Phalar Aluve/);
+ assert.match(warnings.join(' '),/No attack line for Mystery Blade/);
  // The equipped list stays the record of it.
- assert.match(sheet.equipment,/Phalar Aluve \[Melee Main Weapon\]/);
+ assert.match(sheet.equipment,/Mystery Blade \[Melee Main Weapon\]/);
 });
 test('a shield in an offhand weapon slot is owed no attack line',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
  c.equipped=[{name:'Shield of Devotion',stats:'MAG_BG_OfDevotion_Shield',slot:'Melee Offhand Weapon',count:1}];
  assert.equal(adaptCharacter(r,i,blank()).warnings.some(w=>/No attack line/.test(w)),false);
+});
+// Larian spells the quarterstaff three ways, and several base weapons were
+// missing from the table outright, so their wielders had no attack line.
+test('the base weapon table covers the polearms and the quarterstaff spellings',()=>{
+ const cases=[
+  ['Mourning Frost','MAG_Cold_IncreaseColdDamageOnCast_Staff','Quarterstaff','1d6'],
+  ['Twisted Oak Crook','WPN_Quaterstaff_Dryad_ConjureWoodlandBeings','Quarterstaff','1d6'],
+  ['Nyrulna','MAG_TheThorns_Trident','Trident','1d6'],
+  ['Glaive','WPN_Glaive_Cambion','Glaive','1d10'],
+  ['Halberd','WPN_Halberd','Halberd','1d10'],
+  ['Sickle','WPN_Sickle','Sickle','1d4'],
+  ['War Pick','WPN_WarPick','War Pick','1d8'],
+ ];
+ for(const [name,stats,base,die] of cases){
+  const w=weaponProperties({name,stats});
+  assert.equal(w?.name,base,name);assert.equal(w?.die,die,name);
+ }
+});
+test('a named weapon can declare the base its identifier hides',()=>{
+ // UND_SwordInStone names the puzzle, not the weapon, and Phalar Aluve is
+ // finesse where an ordinary longsword is not.
+ const pa=weaponProperties({name:'Phalar Aluve',stats:'UND_SwordInStone'});
+ assert.equal(pa.name,'Longsword');assert.equal(pa.ability,'finesse');assert.equal(pa.enhancement,1);
+ // The save stores the revealed name, which is the one without the +1 in it.
+ const sc=weaponProperties({name:'Sharran Crossbow',stats:'UND_SharranCrossbow'});
+ assert.equal(sc.name,'Light Crossbow');assert.equal(sc.enhancement,1);
+ // A conditional bonus is not an enhancement.
+ assert.equal(weaponProperties({name:'Least Expected',stats:'MAG_Shadow_Blinding_Bow'}).enhancement,0);
 });
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
