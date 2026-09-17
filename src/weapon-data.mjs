@@ -49,6 +49,11 @@ export const NAMED_WEAPONS=new Map([
  // Least Expected: a shortbow. Its +1d4 applies only while its wielder is
  // obscured, so it is a condition rather than an enhancement and scores as 0.
  ['MAG_Shadow_Blinding_Bow',{name:'Least Expected',base:'Shortbow',enhancement:0}],
+ // Rain Dancer: a quarterstaff whose stat block reads 'Enchantment: None'. It
+ // is listed for that zero, which is what stops the note below calling its
+ // figures possibly understated; its Create Water charge is not an
+ // enhancement. An entry is as much use for a verified nothing as for a +1.
+ ['UNI_StaffOfRain',{name:'Rain Dancer',base:'Quarterstaff',enhancement:0}],
 ]);
 // An equipped weapon that is not a plain WPN_ entry, carries no +N in its name
 // and is not listed above may hold an enhancement the sheet cannot see.

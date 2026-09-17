@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions,itemLabel} from '../src/save-adapter.mjs';
-import {weaponProperties} from '../src/weapon-data.mjs';
+import {weaponProperties,weaponEnhancementUnknown} from '../src/weapon-data.mjs';
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
@@ -188,6 +188,23 @@ test('a named weapon can declare the base its identifier hides',()=>{
  assert.equal(sc.name,'Light Crossbow');assert.equal(sc.enhancement,1);
  // A conditional bonus is not an enhancement.
  assert.equal(weaponProperties({name:'Least Expected',stats:'MAG_Shadow_Blinding_Bow'}).enhancement,0);
+ // A verified zero is worth listing too: it stops the summary calling the
+ // figures possibly understated when the stat block says Enchantment: None.
+ assert.equal(weaponEnhancementUnknown({name:'Rain Dancer',stats:'UNI_StaffOfRain'}),false);
+});
+test('a versatile weapon rolls its larger die only when no offhand is filled',()=>{
+ const base=(equipped)=>{
+  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+  c.abilities={str:10,dex:14,con:10,int:10,wis:10,cha:10};
+  c.proficiency_bonus=2;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+  c.equipped=equipped;return adaptCharacter(r,i,blank()).sheet.attacks;
+ };
+ const pa={name:'Phalar Aluve',stats:'UND_SwordInStone',slot:'Melee Main Weapon',count:1};
+ // Its stat block gives 1d8 + 1 in one hand and 1d10 + 1 in two, and finesse
+ // takes the +2 Dexterity over the +0 Strength.
+ assert.equal(base([pa]),'Phalar Aluve: +5 to hit, 1d10 +3 slashing');
+ assert.equal(base([pa,{name:'Iron-Banded Shield',stats:'ARM_Shield',slot:'Melee Offhand Weapon',count:1}]),
+  'Phalar Aluve: +5 to hit, 1d8 +3 slashing');
 });
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
