@@ -54,6 +54,17 @@ export const NAMED_WEAPONS=new Map([
  // figures possibly understated; its Create Water charge is not an
  // enhancement. An entry is as much use for a verified nothing as for a +1.
  ['UNI_StaffOfRain',{name:'Rain Dancer',base:'Quarterstaff',enhancement:0}],
+ // The table already places these; only the enchantment line was unreadable.
+ // Each rider they carry is conditional — on low health, on advantage, on a
+ // burning target — so none of it reaches a resting attack or damage figure.
+ ['MAG_LowHP_IncreaseDamage_Greataxe',{name:'Blooded Greataxe',enhancement:1}],
+ ['MAG_BG_Darkfire_Shortbow',{name:'Darkfire Shortbow',enhancement:2}],
+ ['MAG_Blindside_Shortsword',{name:'Render of Mind and Body',enhancement:1}],
+ ['MAG_Slicing_Shortsword',{name:'Slicing Shortsword',enhancement:1}],
+ ['MAG_Orthon_Hellfire_HandCrossbow',{name:'Hellfire Hand Crossbow',enhancement:2}],
+ // Firestoker reads 'Enchantment: None'; its 1d4 applies only to a burning
+ // target, so the zero is the whole of it.
+ ['MAG_Fire_IncreasePiercingDamageToBurning_HandCrossbow',{name:'Firestoker',enhancement:0}],
 ]);
 // An equipped weapon that is not a plain WPN_ entry, carries no +N in its name
 // and is not listed above may hold an enhancement the sheet cannot see.

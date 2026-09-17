@@ -106,10 +106,10 @@ test('an unlisted magic weapon keeps its figures but says they may be low',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
  c.abilities={str:20,dex:10,con:14,int:8,wis:10,cha:16};
  c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];
- c.equipped=[{name:'Blooded Greataxe',stats:'MAG_LowHP_IncreaseDamage_Greataxe',slot:'Melee Main Weapon',count:1}];
+ c.equipped=[{name:'Mystery Axe',stats:'MAG_Unknown_Mystery_Greataxe',slot:'Melee Main Weapon',count:1}];
  const {sheet,warnings}=adaptCharacter(r,i,blank());
  assert.match(sheet.attacks,/\+9 to hit, 1d12 \+5 slashing/);
- assert.match(warnings.join(' '),/item bonus on Blooded Greataxe is not included/);
+ assert.match(warnings.join(' '),/item bonus on Mystery Axe is not included/);
 });
 test('a plain weapon raises no doubt about a hidden enhancement',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
@@ -205,6 +205,16 @@ test('a versatile weapon rolls its larger die only when no offhand is filled',()
  assert.equal(base([pa]),'Phalar Aluve: +5 to hit, 1d10 +3 slashing');
  assert.equal(base([pa,{name:'Iron-Banded Shield',stats:'ARM_Shield',slot:'Melee Offhand Weapon',count:1}]),
   'Phalar Aluve: +5 to hit, 1d8 +3 slashing');
+});
+test('a listed enchantment reaches the attack line and clears the note',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:10,int:10,wis:10,cha:10};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+ c.equipped=[{name:'Blooded Greataxe',stats:'MAG_LowHP_IncreaseDamage_Greataxe',slot:'Melee Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ // +5 Strength, +4 proficiency, +1 enchantment; 1d12 two-handed.
+ assert.equal(sheet.attacks,'Blooded Greataxe: +10 to hit, 1d12 +6 slashing');
+ assert.equal(warnings.some(w=>/item bonus on/.test(w)),false);
 });
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
