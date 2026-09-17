@@ -14,7 +14,9 @@ Ownerlist record offsets take the same 48-byte heap base as every other pointer 
 
 Local inventory changes correct the 48-byte heap base for stack tables, stack groups, container tables and owner lists. Container kind is read through DataComponent into the Type pool; equipped and carried membership is determined by containers rather than item names. Stack counts are summed per member, including final records and stacks of one.
 
-No upstream licence file was found in this checkout. Redistribution permission must be established before publishing the vendored parser.
+The parser is MIT licensed. Upstream carries no `LICENSE` file, but declares the grant in its own project metadata: at the pinned commit `9578ff7c46a1aa40c805f6b7beecf907f10fb3b8`, `pyproject.toml` reads `license = { text = "MIT" }` with Daniel Finch as author. That covers the repository, so it covers the TypeScript parser vendored here and the local modifications above. The declaration is quoted, with the notice MIT requires, in `vendor/bg3-savefile-parser/LICENCE-NOTE.md`; `pyproject.toml` itself is not vendored, since this project runs no Python.
+
+`data/gamedata.json` is a separate question the licence above does not reach. Its item, spell, class and quest names are extracted from Baldur's Gate 3 and belong to Larian Studios, who granted the parser's author nothing to pass on. Generating the table from a local game installation at build time, rather than redistributing it, is the change that would settle this.
 
 The runtime also bundles `fzstd` 0.1.1 (MIT). esbuild 0.25.12 (MIT) is used only to build the local scripts. Their notices are retained in the installed packages and generated bundle legal comments.
 

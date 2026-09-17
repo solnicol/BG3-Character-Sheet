@@ -30,7 +30,7 @@ Deployments on Vercel record page views through Vercel Web Analytics. It counts 
 
 `npm test` runs adapter regression tests. `npm run build` rebuilds the browser worker and importer. `npm run test:browser` runs browser import checks after starting the server; set `CHROME_PATH` if needed. Browser integration fixtures live in the upstream checkout and are excluded from Git. A fresh clone must obtain those fixtures separately.
 
-Private exports, saves, generated PDFs and preview screenshots are excluded from Git. See THIRD_PARTY.md for the vendored source revision, modifications and unresolved redistribution permission. Do not publish the vendored parser until its licence is confirmed.
+Private exports, saves, generated PDFs and preview screenshots are excluded from Git. See THIRD_PARTY.md for the vendored source revision and modifications. The parser is MIT licensed, declared in upstream's `pyproject.toml` rather than in a `LICENSE` file and recorded in `vendor/bg3-savefile-parser/LICENCE-NOTE.md`. The game-data table it ships alongside is Larian's content and is not covered by that grant.
 
 ## Deploy to Vercel
 
