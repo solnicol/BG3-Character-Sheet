@@ -253,7 +253,10 @@ export function adaptCharacter(report,index,template){
    const extra=w.extra?Math.max(w.extraMin,modifier(out.abilities[w.extra])??w.extraMin):0;
    const damageMod=m===null?null:damageAbility+w.enhancement+extra+archeryGloves+duelling+(allIn?10:0);
    const sign=n=>n>=0?'+'+n:String(n);
-   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}`;
+   // A second damage type the weapon adds on every hit rides after the first.
+   const bonusApplies=w.bonusDamage&&(!w.bonusDamage.race||w.bonusDamage.race===text(c.race));
+   const rider=bonusApplies?` + ${w.bonusDamage.die} ${w.bonusDamage.type}`:'';
+   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}${rider}`;
  });
  out.attacks=attackLines.join('\n');
  // An enhancement the sheet cannot see makes every figure on a weapon's line

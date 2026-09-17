@@ -243,6 +243,29 @@ test('a Melee Caster weapon withholds its figures when no casting ability is kno
  assert.equal(sheet.spellAbility,'');
  assert.match(sheet.attacks,/Sylvan Scimitar: \? to hit, 1d6 \+ \?/);
 });
+// A weapon that adds a second damage type on every hit says so after the first.
+function withWeapon(stats,name,race){
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:10,int:10,wis:10,cha:10};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+ if(race!==undefined)c.race=race;
+ c.equipped=[{name,stats,slot:'Melee Main Weapon',count:1}];
+ return adaptCharacter(r,i,blank()).sheet.attacks;
+}
+test('an unconditional second damage type rides after the first',()=>{
+ assert.equal(withWeapon('MAG_TheThorns_Trident','Nyrulna'),
+  'Nyrulna: +12 to hit, 1d8 +8 piercing + 1d6 thunder');
+ assert.match(withWeapon('MAG_Cold_IncreaseColdDamageOnCast_Staff','Mourning Frost'),/\+ 1d4 cold$/);
+});
+test('a rider gated on the wielder applies to that wielder alone',()=>{
+ // Githborn Psionic Weapon waits on the race, which the save records.
+ assert.match(withWeapon('MAG_Githborn_Mindcrusher_Greatsword','Soulbreaker Greatsword','Githyanki'),/\+ 1d4 psychic$/);
+ assert.doesNotMatch(withWeapon('MAG_Githborn_Mindcrusher_Greatsword','Soulbreaker Greatsword','Tiefling_Zariel'),/psychic/);
+});
+test('a rider waiting on something that changes mid-fight stays off the line',()=>{
+ // Relentless Revenge wants the wielder below half health.
+ assert.doesNotMatch(withWeapon('MAG_LowHP_IncreaseDamage_Greataxe','Blooded Greataxe'),/\+ 1d/);
+});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
 test('combat actions are kept out of the spell list',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'h',name:'Heroism',category:'spell',level:1,prepared:true},{id:'a',name:'Action Surge',category:'spell',level:null,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.match(s.spells,/Heroism/);assert.doesNotMatch(s.spells,/Action Surge/);assert.match(s.features,/Action Surge/);});

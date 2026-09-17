@@ -65,9 +65,16 @@ export const NAMED_WEAPONS=new Map([
  // Firestoker reads 'Enchantment: None'; its 1d4 applies only to a burning
  // target, so the zero is the whole of it.
  ['MAG_Fire_IncreasePiercingDamageToBurning_HandCrossbow',{name:'Firestoker',enhancement:0}],
- ['MAG_Cold_IncreaseColdDamageOnCast_Staff',{name:'Mourning Frost',enhancement:1}],
- ['MAG_TheThorns_Trident',{name:'Nyrulna',enhancement:3}],
- ['MAG_Githborn_Mindcrusher_Greatsword',{name:'Soulbreaker Greatsword',enhancement:1}],
+ // `bonusDamage` is a second damage type the weapon adds on every hit, which
+ // its stat block lists as Extra damage. A rider waiting on low health, on
+ // advantage or on a burning target is not part of a resting figure and stays
+ // out; `race` is the one gate the save can settle for itself.
+ ['MAG_Cold_IncreaseColdDamageOnCast_Staff',{name:'Mourning Frost',enhancement:1,bonusDamage:{die:'1d4',type:'cold'}}],
+ ['MAG_TheThorns_Trident',{name:'Nyrulna',enhancement:3,bonusDamage:{die:'1d6',type:'thunder'}}],
+ // Githborn Psionic Weapon waits on the wielder's race rather than on
+ // anything that changes mid-fight, and the save records the race, so it is
+ // the one gated rider the sheet can settle.
+ ['MAG_Githborn_Mindcrusher_Greatsword',{name:'Soulbreaker Greatsword',enhancement:1,bonusDamage:{die:'1d4',type:'psychic',race:'Githyanki'}}],
  ['MAG_SHA_SeluneBlessing_Spear',{name:"Selûne's Spear of Night",enhancement:3}],
  // Both read 'Enchantment: None'.
  ['MAG_ChargedLightning_Quarterstaff',{name:'The Spellsparkler',enhancement:0}],
@@ -95,5 +102,5 @@ export function weaponProperties(item) {
  if(!row)return null;
  return {name:row[0],die:row[1],damage:row[2],ability:named?.ability??row[3],group:row[4],
   enhancement:named?named.enhancement:Number((item.name||'').match(/\+(\d+)\b/)?.[1]||0),
-  extra:named?.extra??null,extraMin:named?.extraMin??0};
+  extra:named?.extra??null,extraMin:named?.extraMin??0,bonusDamage:named?.bonusDamage??null};
 }
