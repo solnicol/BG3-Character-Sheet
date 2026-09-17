@@ -167,6 +167,11 @@ test('the base weapon table covers the polearms and the quarterstaff spellings',
   ['Halberd','WPN_Halberd','Halberd','1d10'],
   ['Sickle','WPN_Sickle','Sickle','1d4'],
   ['War Pick','WPN_WarPick','War Pick','1d8'],
+  ['Flail','WPN_Flail','Flail','1d8'],
+  ['Morningstar','WPN_Morningstar','Morningstar','1d8'],
+  ['Pike','WPN_Pike','Pike','1d10'],
+  // Its display name says nothing, so only the identifier places this one.
+  ['Rain Dancer','UNI_StaffOfRain','Quarterstaff','1d6'],
  ];
  for(const [name,stats,base,die] of cases){
   const w=weaponProperties({name,stats});

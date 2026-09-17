@@ -11,13 +11,20 @@ const weapons = [
  // sickles are.
  ['Glaive','1d10','slashing','str','Martial'],['Halberd','1d10','slashing','str','Martial'],
  ['Trident','1d6','piercing','str','Martial'],['War Pick','1d8','piercing','str','Martial'],
- ['Sickle','1d4','slashing','str','Simple']
+ ['Sickle','1d4','slashing','str','Simple'],
+ // Flail and morningstar are one-handed martial; the pike is two-handed with
+ // extra reach, so its 1d10 is already the two-handed die and it takes no
+ // versatile upgrade. Both flail and morningstar grant Tenacity, which deals
+ // damage on a miss and so belongs to neither figure on an attack line.
+ ['Flail','1d8','bludgeoning','str','Martial'],['Morningstar','1d8','piercing','str','Martial'],
+ ['Pike','1d10','piercing','str','Martial']
 ];
 // Larian spells the quarterstaff three ways across its identifiers: the
 // ordinary Quarterstaff, a bare Staff, and a Quaterstaff typo. All three are
-// the same weapon, and 20 entries in gamedata.json use one of the latter two.
+// the same weapon. The Staff match deliberately has no closing boundary, so
+// that UNI_StaffOfRain counts: its display name, Rain Dancer, says nothing.
 // Checked only after the table above, so a real family always wins.
-const QUARTERSTAFF=/Quaterstaff|\bStaff\b/i;
+const QUARTERSTAFF=/Quaterstaff|\bStaff/i;
 // A magic weapon carries its enhancement in the item, not in its display name,
 // so the +N read off the name below finds nothing for it. Each entry here is
 // taken from the weapon's published stat block and keyed on the stats ID, which
