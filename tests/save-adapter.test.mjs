@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {adaptCharacter,characterClasses,xpProgress,XP_LEVELS,statusName,activeConditions,itemLabel} from '../src/save-adapter.mjs';
+import {weaponProperties,weaponEnhancementUnknown} from '../src/weapon-data.mjs';
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
@@ -105,10 +106,10 @@ test('an unlisted magic weapon keeps its figures but says they may be low',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
  c.abilities={str:20,dex:10,con:14,int:8,wis:10,cha:16};
  c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];
- c.equipped=[{name:'Blooded Greataxe',stats:'MAG_LowHP_IncreaseDamage_Greataxe',slot:'Melee Main Weapon',count:1}];
+ c.equipped=[{name:'Mystery Axe',stats:'MAG_Unknown_Mystery_Greataxe',slot:'Melee Main Weapon',count:1}];
  const {sheet,warnings}=adaptCharacter(r,i,blank());
  assert.match(sheet.attacks,/\+9 to hit, 1d12 \+5 slashing/);
- assert.match(warnings.join(' '),/item bonus on Blooded Greataxe is not included/);
+ assert.match(warnings.join(' '),/item bonus on Mystery Axe is not included/);
 });
 test('a plain weapon raises no doubt about a hidden enhancement',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
@@ -143,17 +144,127 @@ test('an unnamed weapon of a known base type still gets its attack line',()=>{
 // attack line simply did not appear, which reads as an empty hand.
 test('an unrecognised weapon in a weapon slot is named rather than dropped',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
- c.equipped=[{name:'Phalar Aluve',stats:'UND_SwordInStone',slot:'Melee Main Weapon',count:1}];
+ c.equipped=[{name:'Mystery Blade',stats:'MAG_Unknown_Mystery_Weapon',slot:'Melee Main Weapon',count:1}];
  const {sheet,warnings}=adaptCharacter(r,i,blank());
  assert.equal(sheet.attacks,'');
- assert.match(warnings.join(' '),/No attack line for Phalar Aluve/);
+ assert.match(warnings.join(' '),/No attack line for Mystery Blade/);
  // The equipped list stays the record of it.
- assert.match(sheet.equipment,/Phalar Aluve \[Melee Main Weapon\]/);
+ assert.match(sheet.equipment,/Mystery Blade \[Melee Main Weapon\]/);
 });
 test('a shield in an offhand weapon slot is owed no attack line',()=>{
  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
  c.equipped=[{name:'Shield of Devotion',stats:'MAG_BG_OfDevotion_Shield',slot:'Melee Offhand Weapon',count:1}];
  assert.equal(adaptCharacter(r,i,blank()).warnings.some(w=>/No attack line/.test(w)),false);
+});
+// Larian spells the quarterstaff three ways, and several base weapons were
+// missing from the table outright, so their wielders had no attack line.
+test('the base weapon table covers the polearms and the quarterstaff spellings',()=>{
+ const cases=[
+  ['Mourning Frost','MAG_Cold_IncreaseColdDamageOnCast_Staff','Quarterstaff','1d6'],
+  ['Twisted Oak Crook','WPN_Quaterstaff_Dryad_ConjureWoodlandBeings','Quarterstaff','1d6'],
+  ['Nyrulna','MAG_TheThorns_Trident','Trident','1d6'],
+  ['Glaive','WPN_Glaive_Cambion','Glaive','1d10'],
+  ['Halberd','WPN_Halberd','Halberd','1d10'],
+  ['Sickle','WPN_Sickle','Sickle','1d4'],
+  ['War Pick','WPN_WarPick','War Pick','1d8'],
+  ['Flail','WPN_Flail','Flail','1d8'],
+  ['Morningstar','WPN_Morningstar','Morningstar','1d8'],
+  ['Pike','WPN_Pike','Pike','1d10'],
+  // Its display name says nothing, so only the identifier places this one.
+  ['Rain Dancer','UNI_StaffOfRain','Quarterstaff','1d6'],
+ ];
+ for(const [name,stats,base,die] of cases){
+  const w=weaponProperties({name,stats});
+  assert.equal(w?.name,base,name);assert.equal(w?.die,die,name);
+ }
+});
+test('a named weapon can declare the base its identifier hides',()=>{
+ // UND_SwordInStone names the puzzle, not the weapon, and Phalar Aluve is
+ // finesse where an ordinary longsword is not.
+ const pa=weaponProperties({name:'Phalar Aluve',stats:'UND_SwordInStone'});
+ assert.equal(pa.name,'Longsword');assert.equal(pa.ability,'finesse');assert.equal(pa.enhancement,1);
+ // The save stores the revealed name, which is the one without the +1 in it.
+ const sc=weaponProperties({name:'Sharran Crossbow',stats:'UND_SharranCrossbow'});
+ assert.equal(sc.name,'Light Crossbow');assert.equal(sc.enhancement,1);
+ // A conditional bonus is not an enhancement.
+ assert.equal(weaponProperties({name:'Least Expected',stats:'MAG_Shadow_Blinding_Bow'}).enhancement,0);
+ // A verified zero is worth listing too: it stops the summary calling the
+ // figures possibly understated when the stat block says Enchantment: None.
+ assert.equal(weaponEnhancementUnknown({name:'Rain Dancer',stats:'UNI_StaffOfRain'}),false);
+});
+test('a versatile weapon rolls its larger die only when no offhand is filled',()=>{
+ const base=(equipped)=>{
+  const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+  c.abilities={str:10,dex:14,con:10,int:10,wis:10,cha:10};
+  c.proficiency_bonus=2;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+  c.equipped=equipped;return adaptCharacter(r,i,blank()).sheet.attacks;
+ };
+ const pa={name:'Phalar Aluve',stats:'UND_SwordInStone',slot:'Melee Main Weapon',count:1};
+ // Its stat block gives 1d8 + 1 in one hand and 1d10 + 1 in two, and finesse
+ // takes the +2 Dexterity over the +0 Strength.
+ assert.equal(base([pa]),'Phalar Aluve: +5 to hit, 1d10 +3 slashing');
+ assert.equal(base([pa,{name:'Iron-Banded Shield',stats:'ARM_Shield',slot:'Melee Offhand Weapon',count:1}]),
+  'Phalar Aluve: +5 to hit, 1d8 +3 slashing');
+});
+test('a listed enchantment reaches the attack line and clears the note',()=>{
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:10,int:10,wis:10,cha:10};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+ c.equipped=[{name:'Blooded Greataxe',stats:'MAG_LowHP_IncreaseDamage_Greataxe',slot:'Melee Main Weapon',count:1}];
+ const {sheet,warnings}=adaptCharacter(r,i,blank());
+ // +5 Strength, +4 proficiency, +1 enchantment; 1d12 two-handed.
+ assert.equal(sheet.attacks,'Blooded Greataxe: +10 to hit, 1d12 +6 slashing');
+ assert.equal(warnings.some(w=>/item bonus on/.test(w)),false);
+});
+// Melee Caster rolls a weapon on the spellcasting modifier instead of the
+// ability its family would use.
+function meleeCaster(over={}){
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:10,dex:14,con:10,int:10,wis:20,cha:10};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+ c.spellcasting_ability=over.spellcasting_ability===undefined?'wis':over.spellcasting_ability;
+ if(over.classes)c.class_levels=over.classes;
+ c.equipped=[{name:'Sylvan Scimitar',stats:'MAG_HAV_Sylvan_Scimitar',slot:'Melee Main Weapon',count:1}];
+ return adaptCharacter(r,i,blank()).sheet;
+}
+test('a Melee Caster weapon rolls on the spellcasting modifier, not Dexterity',()=>{
+ // +5 Wisdom rather than +2 Dexterity, +4 proficiency, +1 enchantment.
+ assert.equal(meleeCaster().attacks,'Sylvan Scimitar: +10 to hit, 1d6 +6 slashing');
+});
+test('a camp druid gets her casting ability from her class when the save omits it',()=>{
+ const sheet=meleeCaster({spellcasting_ability:null,classes:[{name:'Druid',subclass:'',level:9}]});
+ assert.equal(sheet.spellAbility,'wis');
+ assert.equal(sheet.attacks,'Sylvan Scimitar: +10 to hit, 1d6 +6 slashing');
+});
+test('a Melee Caster weapon withholds its figures when no casting ability is known',()=>{
+ // A multiclass character with nothing recorded is not guessed at.
+ const sheet=meleeCaster({spellcasting_ability:null,
+  classes:[{name:'Fighter',subclass:'',level:5},{name:'Rogue',subclass:'',level:4}]});
+ assert.equal(sheet.spellAbility,'');
+ assert.match(sheet.attacks,/Sylvan Scimitar: \? to hit, 1d6 \+ \?/);
+});
+// A weapon that adds a second damage type on every hit says so after the first.
+function withWeapon(stats,name,race){
+ const r=structuredClone(report),i=r.characters.findIndex(c=>c.name==='Shadowheart'),c=r.characters[i];
+ c.abilities={str:20,dex:10,con:10,int:10,wis:10,cha:10};
+ c.proficiency_bonus=4;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];
+ if(race!==undefined)c.race=race;
+ c.equipped=[{name,stats,slot:'Melee Main Weapon',count:1}];
+ return adaptCharacter(r,i,blank()).sheet.attacks;
+}
+test('an unconditional second damage type rides after the first',()=>{
+ assert.equal(withWeapon('MAG_TheThorns_Trident','Nyrulna'),
+  'Nyrulna: +12 to hit, 1d8 +8 piercing + 1d6 thunder');
+ assert.match(withWeapon('MAG_Cold_IncreaseColdDamageOnCast_Staff','Mourning Frost'),/\+ 1d4 cold$/);
+});
+test('a rider gated on the wielder applies to that wielder alone',()=>{
+ // Githborn Psionic Weapon waits on the race, which the save records.
+ assert.match(withWeapon('MAG_Githborn_Mindcrusher_Greatsword','Soulbreaker Greatsword','Githyanki'),/\+ 1d4 psychic$/);
+ assert.doesNotMatch(withWeapon('MAG_Githborn_Mindcrusher_Greatsword','Soulbreaker Greatsword','Tiefling_Zariel'),/psychic/);
+});
+test('a rider waiting on something that changes mid-fight stays off the line',()=>{
+ // Relentless Revenge wants the wielder below half health.
+ assert.doesNotMatch(withWeapon('MAG_LowHP_IncreaseDamage_Greataxe','Blooded Greataxe'),/\+ 1d/);
 });
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
