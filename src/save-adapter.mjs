@@ -233,25 +233,34 @@ export function adaptCharacter(report,index,template){
  const equipment=[groupItems('EQUIPPED',equippedOrdered),groupItems('CARRIED',carriedOrdered)].filter(Boolean);
  out.equipment=equipment.join('\n\n');
  const modifier=n=>Number.isInteger(n)?Math.floor((n-10)/2):null;
+ // Martial Arts scales with Monk levels, not total character level.
+ // Versatile weapons qualify even when held in both hands; inherently
+ // two-handed/heavy weapons and ranged weapons do not.
+ // https://bg3.wiki/wiki/Monk
+ const monkLevel=out.classes.filter(x=>x.name==='Monk').reduce((n,x)=>n+x.level,0);
+ const martialDie=monkLevel>=9?8:monkLevel>=3?6:4;
+ const monkWeaponTypes=new Set(['Rapier','Shortsword','Scimitar','Dagger','Longsword','Battleaxe','Handaxe','Warhammer','Light Hammer','Mace','Quarterstaff','Spear','Javelin','Club','Trident','War Pick','Sickle','Flail','Morningstar']);
+ const prof=integer(c.proficiency_bonus,0,10)?c.proficiency_bonus:2+Math.floor((out.classes.reduce((n,x)=>n+x.level,0)-1)/4);
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
  const attackLines=attackItems.map(i=>{
    const w=weaponProperties(i),str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
+   const proficiencies=c.equipment_proficiencies;
+   const proficient=proficiencies?.some(p=>p===w.group+' Weapons'||p.toLowerCase()===w.name.toLowerCase()||p.toLowerCase()===w.name.toLowerCase()+'s');
+   const monkWeapon=monkLevel>0&&proficient&&monkWeaponTypes.has(w.name);
    // A Melee Caster weapon rolls on the spellcasting modifier instead. Without
    // a recovered spellcasting ability there is no figure to give, and the line
    // says so rather than quietly falling back to the arm that is not swinging.
    const m=w.ability==='spell'?(Object.hasOwn(out.abilities,spellAbility)?modifier(out.abilities[spellAbility]):null)
-     :w.ability==='finesse'?(str===null||dex===null?null:Math.max(str,dex)):w.ability==='dex'?dex:str;
-   const proficiencies=c.equipment_proficiencies;
+     :w.ability==='finesse'||monkWeapon?(str===null||dex===null?null:Math.max(str,dex)):w.ability==='dex'?dex:str;
    const ranged=w.ability==='dex',archery=ranged&&passives.has('FightingStyle_Archery')?2:0;
    const archeryGloves=ranged&&wornItems.some(x=>x.stats==='UNI_ARM_OfArchery_Gloves')?2:0;
-   const proficient=proficiencies?.some(p=>p===w.group+' Weapons'||p.toLowerCase()===w.name.toLowerCase()||p.toLowerCase()===w.name.toLowerCase()+'s');
-   const prof=integer(c.proficiency_bonus,0,10)?c.proficiency_bonus:2+Math.floor((out.classes.reduce((n,x)=>n+x.level,0)-1)/4);
    const allIn=ranged&&proficient&&c.passive_toggles?.Sharpshooter_AllIn===true;
    const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery-(allIn?5:0);
    const offhand=/Offhand/.test(i.slot||'');
    const damageAbility=offhand&&m>0&&!passives.has('FightingStyle_TwoWeaponFighting')?0:m;
    const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer','Trident'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
-   const die=twoHanded?(w.die==='1d6'?'1d8':'1d10'):w.die;
+   const weaponDie=twoHanded?(w.die==='1d6'?'1d8':'1d10'):w.die;
+   const die=monkWeapon&&/^1d\d+$/.test(weaponDie)&&Number(weaponDie.slice(2))<martialDie?`1d${martialDie}`:weaponDie;
    const duelling=!twoHanded&&!ranged&&passives.has('FightingStyle_Dueling')&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||'')&&weaponProperties(x))&&!/Great|Maul|Glaive|Halberd|Pike/.test(w.name)?2:0;
    // A weapon that adds a second ability's modifier to its damage, such as the
    // Titanstring Bow's Strength, never gives less than the floor it guarantees.
@@ -263,6 +272,12 @@ export function adaptCharacter(report,index,template){
    const rider=bonusApplies?` + ${w.bonusDamage.die} ${w.bonusDamage.type}`:'';
    return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}${rider}`;
  });
+ if(monkLevel>0){
+   const str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
+   const m=str===null||dex===null?null:Math.max(str,dex);
+   const signed=n=>n>=0?'+'+n:String(n);
+   attackLines.push(`Unarmed strike: ${m===null?'?':signed(m+prof)} to hit, 1d${martialDie}${m===null?' + ?':m?' '+signed(m):''} bludgeoning`);
+ }
  out.attacks=attackLines.join('\n');
  // An enhancement the sheet cannot see makes every figure on a weapon's line
  // one or two low. Saying which weapons that applies to is better than a
