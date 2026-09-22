@@ -6,6 +6,21 @@ import {weaponProperties,weaponEnhancementUnknown} from '../src/weapon-data.mjs'
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
+test('Bracers of Defence add conditional AC from equipped gloves, not inventory or selected passives',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.class_levels=[{name:'Monk',subclass:'OpenHand',level:4}];c.level=4;
+ c.abilities={str:10,dex:18,con:14,int:8,wis:16,cha:8};c.selected_passives=[];
+ const robes={name:'Monastic Robes',stats:'ARM_Monk',slot:'Breast'};
+ const bracers={name:'Localised item name',stats:'UNI_ARM_OfDefense_Gloves',slot:'Gloves'};
+ c.equipped=[robes,bracers];
+ const ac=()=>adaptCharacter(r,0,blank()).sheet.ac;
+ assert.equal(ac(),19); // 10 + 4 DEX + 3 WIS + 2 bracers
+ c.equipped=[robes];c.inventory=[bracers];assert.equal(ac(),17);
+ c.equipped=[robes,bracers,{name:'Shield',stats:'ARM_Shield',slot:'Melee Offhand Weapon'}];assert.equal(ac(),16);
+ c.equipped=[bracers,{name:'Leather Armour',stats:'ARM_Leather_Body',slot:'Breast'}];assert.equal(ac(),15);
+ c.equipped=[robes,bracers];c.class_levels=[{name:'Fighter',level:4}];assert.equal(ac(),16);
+ c.equipped=[bracers];assert.equal(ac(),16);
+});
 test('real report imports race, HP, abilities, feats and inventory with derived proficiencies',()=>{
  const i=report.characters.findIndex(c=>c.name==='Shadowheart'),c=report.characters[i];
  const {sheet}=adaptCharacter(report,i,blank());
