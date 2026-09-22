@@ -196,7 +196,12 @@ export function adaptCharacter(report,index,template){
      // A looked-up class is the item's finished number, so a +N is only read
      // off the display name of armour recognised by family.
      const enhancement=match?.named?0:Number((armourItem?.name||'').match(/\+(\d+)/)?.[1]||0);
-     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
+     // Become the Bulwark is an equipped-item effect, not a selected passive.
+     // Use the stable stats ID, never the character's name or carried items.
+     // https://bg3.wiki/wiki/Bracers_of_Defence
+     const bracers=wornItems.some(i=>i.slot==='Gloves'&&i.stats==='UNI_ARM_OfDefense_Gloves');
+     const bracersBonus=bracers&&unarmoured&&!shieldItem?2:0;
+     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+bracersBonus+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
      // Say so when a number rests on a published stat block rather than on the
      // parser's own data, so it can be checked against the game.
      if(match?.named)warnings.push('Armour class uses a published value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
