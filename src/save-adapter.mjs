@@ -296,7 +296,7 @@ export function adaptCharacter(report,index,template){
  out.features=(c.feats||[]).map(f=>`${f.name||f.guid} (level ${f.level})${f.picks?.length?': '+f.picks.join(', '):''}`).join('\n');
  if(c.illithid_powers?.length)out.features+='\n\nIllithid powers\n'+c.illithid_powers.join('\n');
  const spells=c.spells||[];
- const combatActions=/^(Action Surge|Flourish|Menacing Attack(?: \((?:Melee|Ranged)\))?|Piercing Shot|Piercing Strike|Second Wind|Sweeping Attack|Weakening Strike|Astral Knowledge|Fey Presence|Radiance of the Dawn|Turn Undead)$/i;
+ const combatActions=/^(Action Surge|Flourish|Menacing Attack(?: \((?:Melee|Ranged)\))?|Piercing Shot|Piercing Strike|Second Wind|Sweeping Attack|Weakening Strike|Astral Knowledge|Fey Presence|Radiance of the Dawn|Turn Undead|Ki Restoration|Talk to the Sentient Amulet)$/i;
  // A spell can be present once for its class list, once for its subclass and
  // again in the prepared list. Merge those records before printing.
  // A spell the game data cannot name is a technical container or a mod's own
