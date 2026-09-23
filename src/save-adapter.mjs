@@ -202,9 +202,8 @@ export function adaptCharacter(report,index,template){
      const bracers=wornItems.some(i=>i.slot==='Gloves'&&i.stats==='UNI_ARM_OfDefense_Gloves');
      const bracersBonus=bracers&&unarmoured&&!shieldItem?2:0;
      out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+bracersBonus+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
-     // Say so when a number rests on a published stat block rather than on the
-     // parser's own data, so it can be checked against the game.
-     if(match?.named)warnings.push('Armour class uses a published value for '+match.named.name+' ('+match.named.type+' armour, class '+match.named.ac+').');
+     // Recognised item definitions are normal calculation inputs. Their
+     // sources live with NAMED_ARMOUR, rather than appearing as import errors.
    }
  } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
  out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2):'');
@@ -242,6 +241,8 @@ export function adaptCharacter(report,index,template){
  const monkWeaponTypes=new Set(['Rapier','Shortsword','Scimitar','Dagger','Longsword','Battleaxe','Handaxe','Warhammer','Light Hammer','Mace','Quarterstaff','Spear','Javelin','Club','Trident','War Pick','Sickle','Flail','Morningstar']);
  const prof=integer(c.proficiency_bonus,0,10)?c.proficiency_bonus:2+Math.floor((out.classes.reduce((n,x)=>n+x.level,0)-1)/4);
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
+ out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0);
+ out.spellDcBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellDcBonus,0);
  const attackLines=attackItems.map(i=>{
    const w=weaponProperties(i),str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
    const proficiencies=c.equipment_proficiencies;
