@@ -29,8 +29,8 @@ test('real report imports race, HP, abilities, feats and inventory with derived 
  assert.equal(sheet.classes[0].level,9);assert.equal(sheet.skills.Perception,-1);assert.equal(sheet.saves.wis,null);
  // Luminous Armour carries no family word, so its class comes from the named
  // lookup: 15, plus her +2 Dexterity at the medium cap, plus two for the
- // Shield of Devotion in her offhand. The summary names the published source.
- assert.equal(sheet.ac,19);assert.match(sheet.importSummary,/published value for Luminous Armour/);
+ // Shield of Devotion in her offhand. Recognised data is not an import warning.
+ assert.equal(sheet.ac,19);assert.doesNotMatch(sheet.importSummary,/published value for Luminous Armour/);
  assert.equal(sheet.initiative,2);assert.match(sheet.features,/War Caster/);
  assert.match(sheet.equipment,/EQUIPPED/);assert.match(sheet.spells,/Cantrip/);
  assert.doesNotMatch(sheet.resources,/Interrupt_/);
@@ -84,7 +84,7 @@ test('the Defence fighting style needs armour, which clothing is not',()=>{
 });
 test('a named heavy armour ignores Dexterity entirely',()=>{
  const s=clothed("Reaper's Embrace",'MOO_Ketheric_Armor');
- assert.equal(s.ac,19);assert.match(s.importSummary,/published value for Reaper's Embrace/);
+ assert.equal(s.ac,19);assert.doesNotMatch(s.importSummary,/published value for Reaper's Embrace/);
 });
 test('named light armour is included in the shared AC calculation',()=>{const r=structuredClone(report);const i=r.characters.findIndex(c=>c.name==='Shadowheart');r.characters[i].abilities.dex=13;r.characters[i].equipped=[{stats:'GOB_DrowCommander_Leather_Armor',name:'Spidersilk Armour',slot:'Body',count:1}];const s=adaptCharacter(r,i,blank()).sheet;assert.equal(s.ac,13);});
 // A status id carries its content prefix and, where it has one, its magnitude.

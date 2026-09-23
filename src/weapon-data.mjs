@@ -32,6 +32,10 @@ const QUARTERSTAFF=/Quaterstaff|\bStaff/i;
 // modifier the weapon adds to damage on top of its own, with `extraMin` as the
 // floor the weapon guarantees.
 export const NAMED_WEAPONS=new Map([
+ // https://bg3.wiki/wiki/Sword_of_Screams: unenchanted finesse rapier.
+ ['UND_Nere_Sword',{name:'Sword of Screams',base:'Rapier',enhancement:0,bonusDamage:{die:'1d4',type:'psychic'}}],
+ // https://bg3.wiki/wiki/Melf%27s_First_Staff: +1 weapon, plus Arcane Enchantment.
+ ['MAG_BasicEnchanted_Quarterstaff',{name:"Melf's First Staff",base:'Quarterstaff',enhancement:1,spellAttackBonus:1,spellDcBonus:1}],
  // Titanstring Bow: a +1 longbow whose Titan Weapon property adds the wielder's
  // Strength modifier to damage, never less than 1.
  ['MAG_StrongString_Longbow',{name:'Titanstring Bow',enhancement:1,extra:'str',extraMin:1}],
@@ -102,5 +106,6 @@ export function weaponProperties(item) {
  if(!row)return null;
  return {name:row[0],die:row[1],damage:row[2],ability:named?.ability??row[3],group:row[4],
   enhancement:named?named.enhancement:Number((item.name||'').match(/\+(\d+)\b/)?.[1]||0),
-  extra:named?.extra??null,extraMin:named?.extraMin??0,bonusDamage:named?.bonusDamage??null};
+  extra:named?.extra??null,extraMin:named?.extraMin??0,bonusDamage:named?.bonusDamage??null,
+  spellAttackBonus:named?.spellAttackBonus??0,spellDcBonus:named?.spellDcBonus??0};
 }
