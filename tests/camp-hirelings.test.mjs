@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {adaptCharacter} from '../src/save-adapter.mjs';
 // Private fixture remains outside the repository. Rebuild before running.
 test('two camp hirelings retain separate names, builds and inventory',{skip:!process.env.HIRELINGS_SAVE},()=>{
  let report;const self={postMessage(m){if(m.kind==='error')throw Error(m.message);if(m.kind==='report')report=m.report;}};
@@ -19,4 +20,7 @@ test('two camp hirelings retain separate names, builds and inventory',{skip:!pro
  assert.ok(athena.equipped.some(i=>i.stats==='UNI_ARM_OfDefense_Gloves'));
  assert.ok(!circe.equipped.some(i=>i.stats==='UNI_ARM_OfDefense_Gloves'));
  assert.ok(circe.equipped.some(i=>i.name==="Spider's Lyre"));
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const blank=Function('return ('+html.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
+ assert.equal(adaptCharacter(report,report.characters.indexOf(circe),blank()).sheet.ac,13);
 });

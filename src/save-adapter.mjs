@@ -81,6 +81,8 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // gamedata.json records for this stats ID.
 // Reaper's Embrace: heavy, class 19, per its stat block on bg3.wiki.
 export const NAMED_ARMOUR=new Map([
+ // https://bg3.wiki/wiki/Simple_Jerkin
+ ['ARM_Bard',{name:'Simple Jerkin',type:'light',ac:11}],
  ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
  ['MOO_Ketheric_Armor',{name:"Reaper's Embrace",type:'heavy',ac:19}],
 ]);
