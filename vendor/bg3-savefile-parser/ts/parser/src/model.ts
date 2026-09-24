@@ -1,4 +1,5 @@
 import {applySavedBuild} from '../../../../../src/build-rules.mjs';
+import {discoverCampHirelings} from '../../../../../src/camp-hirelings';
 import {resolveInventory} from '../../../../../src/inventory-ownership.mjs';
 import {ownedStackCount} from '../../../../../src/stack-count.mjs';
 /** Report model: gather everything the views need from a parsed save.
@@ -480,6 +481,13 @@ export function gatherReport(
     ? parseLsmfInterruptPreferences(lsmfBlob)
     : new Map<number, string[]>();
   const ccNames = lsmfBlob ? parseLsmfCcNames(lsmfBlob) : [];
+  const campHirelings=lsmfBlob?discoverCampHirelings(nodes0,lsmfBlob,dn,new Set(partyNodes.values())):[];
+  for(const h of campHirelings){
+    partyNodes.set(h.name,h.node);
+    const position=posKey(nodes0[h.node]!.attrs.Translate);
+    if(position)charPositions.set(h.name,position);
+    statsEntities.set(h.name,h.entity);
+  }
   const normName = (s: string): string => s.toLowerCase().replace(/[^a-z]/g, '');
 
   // Hirelings' custom names exist only in the CC stats rows; unambiguous
@@ -1084,7 +1092,8 @@ export function gatherReport(
     };
 
     for (const name of campNames) {
-      const [race, baseClass] = ORIGIN_INFO[name] ?? ['?', null];
+      const hireling=campHirelings.find(h=>h.name===name);
+      const [race, baseClass] = hireling?[hireling.race,null]:ORIGIN_INFO[name] ?? ['?', null];
       const char: CharacterReport = {
         name,
         race,
