@@ -627,8 +627,8 @@ export function gatherReport(
   // preparation data get prepared=null throughout. Each prepared entry carries
   // its SpellSourceType (class/subclass/race/item/...) so the player-chosen
   // list can be told from always-prepared grants; spell level separates
-  // cantrips from leveled spells. Item grants (source 3) and Illithid powers
-  // (source 22) may exist only in PreparedSpells, outside the standard book.
+  // cantrips from leveled spells. Item grants (source 3), learned Wizard
+  // spells (source 18) and Illithid powers (22) can be outside the main book.
   // Preserve these actual saved grants rather than inferring them from gear.
   const ILLITHID_SOURCE = 22;
   const stripUpcast = (sid: string): string => sid.replace(/_\d+$/, '');
@@ -649,7 +649,7 @@ export function gatherReport(
     const ids = new Set(bookIds);
     if (prepared)
       for (const [name, st] of prepared)
-        if ((st === 3 || st === ILLITHID_SOURCE) && !bookIds.has(name)) ids.add(name);
+        if ((st === 3 || st === 18 || st === ILLITHID_SOURCE) && !bookIds.has(name)) ids.add(name);
     return [...ids].sort().map((sid) => {
       const base = stripUpcast(sid);
       const source = preparedSource ? (preparedSource.get(base) ?? null) : null;
