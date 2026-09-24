@@ -6,6 +6,15 @@ import {weaponProperties,weaponEnhancementUnknown} from '../src/weapon-data.mjs'
 const source=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+source.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
 const report=JSON.parse(readFileSync(new URL('../vendor/bg3-savefile-parser/tests/parity/quicksave_469.expected.json',import.meta.url)));
+test('missing feats only warn after a class reaches its first feat level',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.feats=null;
+ c.level=5;c.class_levels=[{name:'Bard',level:3},{name:'Wizard',level:2}];
+ assert.ok(!adaptCharacter(r,0,blank()).warnings.some(w=>w.startsWith('Feat choices')));
+ c.level=6;c.class_levels[0].level=4;
+ assert.ok(adaptCharacter(r,0,blank()).warnings.some(w=>w.startsWith('Feat choices')));
+ c.feats=[{name:'Alert',level:4}];
+ assert.ok(!adaptCharacter(r,0,blank()).warnings.some(w=>w.startsWith('Feat choices')));
+});
 test('Bracers of Defence add conditional AC from equipped gloves, not inventory or selected passives',()=>{
  const r=structuredClone(report),c=r.characters[0];
  c.class_levels=[{name:'Monk',subclass:'OpenHand',level:4}];c.level=4;
