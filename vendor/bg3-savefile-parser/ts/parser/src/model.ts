@@ -15,6 +15,7 @@ import {
   parseLsmfActionResources,
   parseLsmfAllContainerPositions,
   parseLsmfCampSupplies,
+  parseLsmfCampChestProfiles,
   parseLsmfCcNames,
   parseLsmfClasses,
   parseLsmfComponentRows,
@@ -220,6 +221,7 @@ export interface SaveReport {
   characters: CharacterReport[];
   save_info: SaveInfo;
   camp_chest: ItemRef[] | null;
+  camp_chests?: {owner: string | null; items: ItemRef[]}[];
   quests: QuestsReport | null;
   story: StoryState | null;
   level_items: null;
@@ -330,6 +332,12 @@ export function itemCategory(stats: string, dn: DisplayNames): string {
     if (parts[1] === 'Scroll' || parts[1] === 'Book') return 'book';
   }
   return ITEM_GROUP_BY_PREFIX[parts[0]!] ?? 'misc';
+}
+
+/** Food, drink and supply packs add clutter to a printable chest list. */
+function isCampSupply(stats: string): boolean {
+  return /(?:^|_)(?:FOOD|Food|Drink|DRINK|Alcohol)(?:_|$)/.test(stats)
+    || /^(?:OBJ_Camp_Pack|OBJ_Backpack_CampSupplies|OBJ_GenericDrinkItem|WPN_Salami|CONS_Honey)$/.test(stats);
 }
 
 // Display order for equipped items, mirroring the in-game panel.
@@ -959,6 +967,7 @@ export function gatherReport(
     characters: [],
     save_info: saveInfo,
     camp_chest: null,
+    camp_chests: undefined,
     quests: null,
     story: null,
     level_items: null,
@@ -1198,7 +1207,7 @@ export function gatherReport(
       for (const eg of chestGuids) {
         const tmpl = entityToTemplate0.get(eg) ?? '';
         const statsName = entityStats.get(eg) || (templateToStats.get(tmpl) ?? '');
-        if (!statsName) continue; // entity outside the item maps (e.g. a stack twin)
+        if (!statsName || isCampSupply(statsName)) continue; // entity outside the item maps (e.g. a stack twin)
         const key = `${statsName}|${tmpl}`;
         perItem.set(key, (perItem.get(key) ?? 0) + (lsmfStackAmounts.get(eg) ?? 1));
       }
@@ -1247,7 +1256,7 @@ export function gatherReport(
                   ? -1
                   : 1,
         )
-        .filter(([stats]) => stats)
+        .filter(([stats]) => stats && !isCampSupply(stats))
         .map(([stats, , guid]) => itemRef(stats, guid, { count: chestCount(stats) }));
     }
 
@@ -1259,25 +1268,46 @@ export function gatherReport(
       .filter((inventory) => CAMP_CHEST_TEMPLATES.has(entityToTemplate0.get(inventory.owner) ?? ''))
       .map((inventory) => inventory.owner));
     if (chestOwners.size) {
+      const avatarNodes = new Set(partyInfo
+        .filter((ci) => PLAYER_ORIGINS.has(ci.Origin ?? 'Generic') && Array.isArray(ci.Position) && ci.Position.length === 3)
+        .map((ci) => findCharacterNodeAt(nodes0, ci.Position as [number, number, number]))
+        .filter((ni): ni is number => ni !== null));
+      const profileNames = new Map<string, string>();
+      for (const [name, ni] of partyNodes) {
+        if (!avatarNodes.has(ni)) continue;
+        const player = nodes0[ni]!.children.find((ci) => nodes0[ci]!.name === 'PlayerData');
+        const custom = player === undefined ? undefined : nodes0[player]!.children.find((ci) => nodes0[ci]!.name === 'PlayerCustomData');
+        const profile = custom === undefined ? '' : String(nodes0[custom]!.attrs.ReservedProfileID ?? '').toLowerCase();
+        if (profile) profileNames.set(profile, name);
+      }
+      const chestProfiles = lsmfBlob ? parseLsmfCampChestProfiles(lsmfBlob) : new Map<string, string>();
       const entityStats = new Map<string, string>();
       for (const [key, entities] of instanceEntityLists) {
         const stats = key.slice(key.lastIndexOf('|') + 1);
         for (const entity of entities) entityStats.set(entity, stats);
       }
-      const amounts = new Map<string, number>();
-      for (const entity of collectLiveContainerContents(liveInventories, chestOwners, wornEntities)) {
-        const template = entityToTemplate0.get(entity) ?? '';
-        const stats = entityStats.get(entity) ?? templateToStats.get(template) ?? '';
-        if (!stats) continue;
-        const key = stats + '|' + template;
-        amounts.set(key, (amounts.get(key) ?? 0) + (lsmfStackAmounts.get(entity) ?? 1));
-      }
-      report.camp_chest = [...amounts]
-        .map(([key, count]) => {
+      const allAmounts = new Map<string, number>();
+      report.camp_chests = [...chestOwners].map((chest) => {
+        const amounts = new Map<string, number>();
+        for (const entity of collectLiveContainerContents(liveInventories, new Set([chest]), wornEntities)) {
+          const template = entityToTemplate0.get(entity) ?? '';
+          const stats = entityStats.get(entity) ?? templateToStats.get(template) ?? '';
+          if (!stats || isCampSupply(stats)) continue;
+          const key = stats + '|' + template;
+          const count = lsmfStackAmounts.get(entity) ?? 1;
+          amounts.set(key, (amounts.get(key) ?? 0) + count);
+          allAmounts.set(key, (allAmounts.get(key) ?? 0) + count);
+        }
+        const items = [...amounts].map(([key, count]) => {
           const split = key.indexOf('|');
           return itemRef(key.slice(0, split), key.slice(split + 1), {count});
-        })
-        .sort((a, b) => String(a.name ?? a.stats).localeCompare(String(b.name ?? b.stats), 'en'));
+        }).sort((a, b) => String(a.name ?? a.stats).localeCompare(String(b.name ?? b.stats), 'en'));
+        return {owner: profileNames.get(chestProfiles.get(chest) ?? '') ?? null, items};
+      });
+      report.camp_chest = [...allAmounts].map(([key, count]) => {
+        const split = key.indexOf('|');
+        return itemRef(key.slice(0, split), key.slice(split + 1), {count});
+      }).sort((a, b) => String(a.name ?? a.stats).localeCompare(String(b.name ?? b.stats), 'en'));
     }
   }
 
