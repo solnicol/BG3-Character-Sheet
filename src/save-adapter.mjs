@@ -52,7 +52,7 @@ export function statusName(id){
 export function activeConditions(statuses){
  const seen=new Set(),out=[];
  for(const s of statuses||[]){
-  if(!s||s.permanent)continue;
+  if(!s||s.permanent||s.id==='TAD_PEACE_BREAKER')continue;
   const name=statusName(s.id);
   if(!name||seen.has(name))continue;
   seen.add(name);out.push(name);
@@ -297,8 +297,10 @@ export function adaptCharacter(report,index,template){
  const gold=(c.carried||[]).filter(i=>['OBJ_GoldCoin','OBJ_GoldPile'].includes(i.stats));
  out.gold=gold.length&&gold.every(i=>i.count_known!==false&&integer(i.count))?gold.reduce((sum,i)=>sum+i.count,0):'';
  out.features=(c.feats||[]).map(f=>`${f.name||f.guid} (level ${f.level})${f.picks?.length?': '+f.picks.join(', '):''}`).join('\n');
- if(c.illithid_powers?.length)out.features+='\n\nIllithid powers\n'+c.illithid_powers.join('\n');
  const spells=c.spells||[];
+ const purchased=(c.illithid_powers??spells.filter(s=>s.source===22).map(s=>s.name||s.id))
+   .filter(n=>n&&n!=='Illithid Persuasion');
+ out.illithidPowers=[...new Set(purchased)].join('\n');
  const combatActions=/^(Action Surge|Flourish|Menacing Attack(?: \((?:Melee|Ranged)\))?|Piercing Shot|Piercing Strike|Second Wind|Sweeping Attack|Weakening Strike|Astral Knowledge|Fey Presence|Radiance of the Dawn|Turn Undead|Ki Restoration|Talk to the Sentient Amulet)$/i;
  // A spell can be present once for its class list, once for its subclass and
  // again in the prepared list. Merge those records before printing.
@@ -310,7 +312,7 @@ export function adaptCharacter(report,index,template){
  const unnamedSpells=spells.filter(s=>s.category==='spell'&&!s.name).length;
  if(unnamedSpells)warnings.push(unnamedSpells+' spell '+(unnamedSpells===1?'entry has':'entries have')+' no name in the game data, so '+(unnamedSpells===1?'it is':'they are')+' not listed. Mod-added spells appear this way.');
  const uniqueSpells=new Map();
- for(const s of spells) if(s.category==='spell'&&s.name&&!combatActions.test(String(s.name))){
+ for(const s of spells) if(s.source!==22&&s.category==='spell'&&s.name&&!combatActions.test(String(s.name))){
    const key=String(s.name||s.id||'').trim().toLowerCase();
    const prev=uniqueSpells.get(key);
    if(!prev || (s.prepared===true && prev.prepared!==true)) uniqueSpells.set(key,{...prev,...s,prepared:s.prepared===true||prev?.prepared===true});
@@ -320,8 +322,9 @@ export function adaptCharacter(report,index,template){
    return la-lb || String(a.name||a.id).localeCompare(String(b.name||b.id),'en',{sensitivity:'base'});
  });
  out.spells=orderedSpells.map(s=>`${s.level===0?'Cantrip':s.level?'Level '+s.level:'Spell'}: ${s.name||s.id}${s.prepared===true?' [prepared]':s.prepared===false?' [not prepared]':''}`).join('\n');
- const other=[...spells.filter(s=>s.category!=='spell'&&s.category!=='basic-action'&&s.category!=='sub-spell'),...spells.filter(s=>s.category==='spell'&&combatActions.test(String(s.name||'')))];
- out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',c.reactions?.length?'\n\nReactions\n'+c.reactions.join('\n'):''].join('');
+ const other=[...spells.filter(s=>s.source!==22&&s.category!=='spell'&&s.category!=='basic-action'&&s.category!=='sub-spell'),...spells.filter(s=>s.source!==22&&s.category==='spell'&&combatActions.test(String(s.name||'')))];
+ const reactions=(c.reactions||[]).filter(n=>!purchased.includes(n));
+ out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',reactions.length?'\n\nReactions\n'+reactions.join('\n'):''].join('');
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
  out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
