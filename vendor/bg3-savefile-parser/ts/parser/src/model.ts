@@ -16,6 +16,7 @@ import {
   parseLsmfAllContainerPositions,
   parseLsmfCampSupplies,
   parseLsmfCampChestProfiles,
+  parseLsmfCampSupplyEntities,
   parseLsmfCcNames,
   parseLsmfClasses,
   parseLsmfComponentRows,
@@ -337,7 +338,7 @@ export function itemCategory(stats: string, dn: DisplayNames): string {
 /** Food, drink and supply packs add clutter to a printable chest list. */
 function isCampSupply(stats: string): boolean {
   return /(?:^|_)(?:FOOD|Food|Drink|DRINK|Alcohol)(?:_|$)/.test(stats)
-    || /^(?:OBJ_Camp_Pack|OBJ_Backpack_CampSupplies|OBJ_GenericDrinkItem|WPN_Salami|CONS_Honey)$/.test(stats);
+    || /^(?:OBJ_Camp_Pack|OBJ_Backpack_CampSupplies|OBJ_GenericDrinkItem|WPN_Salami|CONS_Honey|QUEST_FOR_OwlbearEgg)$/.test(stats);
 }
 
 // Display order for equipped items, mirroring the in-game panel.
@@ -1193,6 +1194,7 @@ export function gatherReport(
     // Backstop: drop any worn entity the walk still pulled in (a mod gear swap
     // leaves the worn item's membership lingering in a chest bag).
     const chestGuids = containerGuids?.filter((g) => !wornEntities.has(g)) ?? null;
+    const supplyEntities = lsmfBlob ? parseLsmfCampSupplyEntities(lsmfBlob) : new Set<string>();
 
     if (chestGuids !== null) {
       // The instance lists carry each entity's exact stats name; the template
@@ -1207,7 +1209,7 @@ export function gatherReport(
       for (const eg of chestGuids) {
         const tmpl = entityToTemplate0.get(eg) ?? '';
         const statsName = entityStats.get(eg) || (templateToStats.get(tmpl) ?? '');
-        if (!statsName || isCampSupply(statsName)) continue; // entity outside the item maps (e.g. a stack twin)
+        if (!statsName || isCampSupply(statsName) || supplyEntities.has(eg)) continue; // entity outside the item maps (e.g. a stack twin)
         const key = `${statsName}|${tmpl}`;
         perItem.set(key, (perItem.get(key) ?? 0) + (lsmfStackAmounts.get(eg) ?? 1));
       }
@@ -1292,7 +1294,7 @@ export function gatherReport(
         for (const entity of collectLiveContainerContents(liveInventories, new Set([chest]), wornEntities)) {
           const template = entityToTemplate0.get(entity) ?? '';
           const stats = entityStats.get(entity) ?? templateToStats.get(template) ?? '';
-          if (!stats || isCampSupply(stats)) continue;
+          if (!stats || isCampSupply(stats) || supplyEntities.has(entity)) continue;
           const key = stats + '|' + template;
           const count = lsmfStackAmounts.get(entity) ?? 1;
           amounts.set(key, (amounts.get(key) ?? 0) + count);

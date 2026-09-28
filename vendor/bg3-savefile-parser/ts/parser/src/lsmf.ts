@@ -1533,6 +1533,21 @@ export function parseLsmfCampChestProfiles(blob: Uint8Array): Map<string, string
   return out;
 }
 
+/** Item entities carrying the game's camp-supply component. */
+export function parseLsmfCampSupplyEntities(blob: Uint8Array): Set<string> {
+  const out = new Set<string>();
+  const idx = lsmfComponentIndex(blob);
+  const supplies = idx.get('game.camp.v0.SupplyComponent');
+  const ids = idx.get('core.v0.EntityId');
+  if (!supplies || !ids || ids.elemSize !== 16) return out;
+  const {bytes} = align(blob);
+  for (const row of supplies.ownerRows) {
+    const p = ids.dataOffset + LSMF_HEAP_BASE + row * 16;
+    if (row < ids.rowCount && p + 16 <= bytes.length) out.add(guidLeStr(bytes, p));
+  }
+  return out;
+}
+
 /** Saved toggle state, keyed by the actual owning entity GUID. */
 export function parseLsmfPassiveToggles(blob:Uint8Array):Map<string,Record<string,boolean>> {
   const result=new Map<string,Record<string,boolean>>(),scan=scanLsmfBlob(blob);if(!scan)return result;
