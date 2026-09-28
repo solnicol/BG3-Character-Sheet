@@ -1133,7 +1133,10 @@ export function parseLsmfPowerLists(blob: Uint8Array): string[][] {
   const recName = (p: number): string | null => {
     if (!(p >= 0 && p <= L - 16)) return null;
     const sptr = u64(dv, p);
-    const ln = u64(dv, p + 8);
+    // Current saves store a 32-bit length followed by a 32-bit string flag.
+    // Older records have a zero flag, so reading the length as u64 loses all
+    // power lists as soon as that flag is non-zero.
+    const ln = dv.getUint32(p + 8, true);
     const p0 = sptr + LSMF_HEAP_BASE;
     if (!(ln > 0 && ln <= 128 && p0 > 0 && p0 <= L - ln)) return null;
     for (let i = 0; i < ln; i++) {
@@ -1151,10 +1154,10 @@ export function parseLsmfPowerLists(blob: Uint8Array): string[][] {
   for (;;) {
     const i = indexOf(bytes, root, s);
     if (i < 0) break;
-    // a {ptr, len} record naming the root power: 8 bytes ptr (i - HEAP_BASE) + 8 bytes len
-    const record = new Uint8Array(16);
+    // Match the pointer and 32-bit length; the final four flag bytes vary.
+    const record = new Uint8Array(12);
     new DataView(record.buffer).setBigUint64(0, BigInt(i - LSMF_HEAP_BASE), true);
-    new DataView(record.buffer).setBigUint64(8, BigInt(root.length), true);
+    new DataView(record.buffer).setUint32(8, root.length, true);
     let q = 0;
     for (;;) {
       const r = indexOf(bytes, record, q);

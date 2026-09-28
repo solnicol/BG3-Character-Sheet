@@ -290,6 +290,17 @@ test('a rider waiting on something that changes mid-fight stays off the line',()
  // Relentless Revenge wants the wielder below half health.
  assert.doesNotMatch(withWeapon('MAG_LowHP_IncreaseDamage_Greataxe','Blooded Greataxe'),/\+ 1d/);
 });
+test('purchased illithid powers have their own field, excluding the root and technical marker',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.illithid_powers=['Concentrated Blast','Cull the Weak','Illithid Persuasion'];
+ c.spells=[{id:'Target_TAD_ConcentratedBlast',name:'Concentrated Blast',category:'spell',source:22,level:null,prepared:true}];
+ c.statuses=[{id:'TAD_PEACE_BREAKER',permanent:false}];
+ const sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(sheet.illithidPowers,'Concentrated Blast\nCull the Weak');
+ assert.doesNotMatch(sheet.features,/Concentrated Blast|Cull the Weak|Illithid Persuasion/);
+ assert.doesNotMatch(sheet.spells,/Concentrated Blast/);
+ assert.equal(sheet.conditions,'');
+});
 test('spell sources are merged into one orderly entry',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:false},{id:'X',name:'Guiding Bolt',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.equal((s.spells.match(/Guiding Bolt/g)||[]).length,1);assert.match(s.spells,/prepared/);});
 test('spells are ordered by level then name',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'b',name:'Zeta',category:'spell',level:1,prepared:true},{id:'a',name:'Alpha',category:'spell',level:0,prepared:true},{id:'c',name:'Beta',category:'spell',level:1,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet.spells.split('\n');assert.deepEqual(s.map(x=>x.split(': ')[1].split(' [')[0]),['Alpha','Beta','Zeta']);});
 test('combat actions are kept out of the spell list',()=>{const r=structuredClone(report);r.characters[0].spells=[{id:'h',name:'Heroism',category:'spell',level:1,prepared:true},{id:'a',name:'Action Surge',category:'spell',level:null,prepared:true}];const s=adaptCharacter(r,0,blank()).sheet;assert.match(s.spells,/Heroism/);assert.doesNotMatch(s.spells,/Action Surge/);assert.match(s.features,/Action Surge/);});

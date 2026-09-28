@@ -1275,6 +1275,12 @@ export function gatherReport(
       const cands = byActive.get(acts);
       if (cands && cands.size === 1) {
         char.illithid_powers = [...cands.values()][0]!;
+      } else if (cands && !acts && (char.resources ?? []).some((r) =>
+        /LuckOfTheFarRealms|LuckOfFarRealms/i.test(r.name ?? ''))) {
+        // A passive-only build cannot be distinguished from root-only builds
+        // by its spellbook. The saved once-per-rest Luck charge identifies it.
+        const withLuck = [...cands.values()].filter((names) => names.includes('Luck of the Far Realms'));
+        if (withLuck.length === 1) char.illithid_powers = withLuck[0]!;
       }
     }
   }
