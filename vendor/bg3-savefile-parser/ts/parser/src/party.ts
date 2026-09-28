@@ -205,6 +205,37 @@ export function buildEntityTemplateMap(nodes: LsofNode[], rootName: string): Map
   return result;
 }
 
+/** Walk the live inventory graph from recognised Traveller's Chest entities. */
+export function collectLiveContainerContents(
+  inventories: {owner: string; items: string[]}[],
+  roots: Set<string>,
+  worn: Set<string> = new Set(),
+): string[] {
+  const byOwner = new Map<string, string[]>();
+  for (const {owner, items} of inventories) {
+    const list = byOwner.get(owner) ?? [];
+    list.push(...items);
+    byOwner.set(owner, list);
+  }
+  const result: string[] = [], seenItems = new Set<string>(), seenOwners = new Set<string>();
+  let frontier = [...roots];
+  for (let depth = 0; depth < 8 && frontier.length; depth++) {
+    const next: string[] = [];
+    for (const owner of frontier) {
+      if (seenOwners.has(owner)) continue;
+      seenOwners.add(owner);
+      for (const item of byOwner.get(owner) ?? []) {
+        if (worn.has(item) || seenItems.has(item)) continue;
+        seenItems.add(item);
+        result.push(item);
+        if (byOwner.has(item)) next.push(item);
+      }
+    }
+    frontier = next;
+  }
+  return result;
+}
+
 function itemsFactoryArrays(nodes: LsofNode[]): { creators: number[]; items: number[] } | null {
   const itemsRoot = nodes.findIndex((nd) => nd.name === 'Items' && nd.parent === -1);
   if (itemsRoot < 0) return null;

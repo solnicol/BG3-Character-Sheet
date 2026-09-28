@@ -47,3 +47,6 @@ dialog .replace-notice{color:var(--muted);font-size:12px;border-top:1px solid #d
 @media print{.workspace-bar,.welcome,.skip-link,.player-hint{display:none!important}}
 .illithid-panel .legend{margin:0 0 8px}.illithid-panel ul{list-style:none;padding:0;margin:0}.illithid-panel li{border-top:1px solid #d8d2c6;padding:7px 0;font-size:13px;line-height:1.4;break-inside:avoid}.illithid-panel li:first-child{border-top:0}
 @media print{.illithid-panel li{font-size:9px;padding:3px 0}}
+.camp-storage .legend{margin:0 0 16px}.camp-storage-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.camp-storage-columns ul{list-style:none;margin:0;padding:0}.camp-storage-columns li{border-top:1px solid #ddd6ca;padding:5px 0;font-size:12px;line-height:1.35;break-inside:avoid}.camp-storage-columns li:first-child{border-top:0}
+@media(max-width:650px){.camp-storage-columns{grid-template-columns:1fr}}
+@media print{.camp-storage-columns{gap:12px}.camp-storage-columns li{font-size:9px;padding:3px 0}.camp-storage .legend{margin-bottom:10px}}

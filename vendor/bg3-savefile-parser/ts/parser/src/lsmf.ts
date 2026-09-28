@@ -97,7 +97,8 @@ function scanLsmfBlobUncached(blob: Uint8Array): ScannedBlob | null {
       const base = descBase + i * 48;
       if (base + 48 > L) break;
       const nameOff = u64(dv, base);
-      const nameLen = u64(dv, base + 8);
+      // Current saves store a 32-bit length followed by 32-bit string flags.
+      const nameLen = dv.getUint32(base + 8, true);
       const elemSize = dv.getUint32(base + 24, true);
       const rowCount = u64(dv, base + 32);
       const dataOffset = u64(dv, base + 40);
@@ -1506,6 +1507,30 @@ export function parseLsmfInventories(blob: Uint8Array): {row:number;owner:string
     result.push({row,owner,kind,items:[...new Set(items)]});
   }
   return result;
+}
+
+/** Traveller's Chest entity -> reserved player profile, from the saved chest component. */
+export function parseLsmfCampChestProfiles(blob: Uint8Array): Map<string, string> {
+  const out = new Map<string, string>();
+  const idx = lsmfComponentIndex(blob);
+  const chests = idx.get('game.camp.v1.ChestComponent');
+  const ids = idx.get('core.v0.EntityId');
+  if (!chests || !ids || chests.elemSize !== 48 || ids.elemSize !== 16) return out;
+  const {bytes, dv} = align(blob);
+  const decoder = new TextDecoder();
+  for (let i = 0; i < Math.min(chests.rowCount, chests.ownerRows.length); i++) {
+    const row = chests.ownerRows[i]!;
+    const entityAt = ids.dataOffset + LSMF_HEAP_BASE + row * 16;
+    const p = chests.dataOffset + LSMF_HEAP_BASE + i * 48;
+    if (row >= ids.rowCount || entityAt + 16 > bytes.length || p + 48 > bytes.length) continue;
+    const profileAt = u64(dv, p + 16) + LSMF_HEAP_BASE;
+    const length = dv.getUint32(p + 24, true);
+    if (length !== 36 || profileAt < LSMF_HEAP_BASE || profileAt + length > bytes.length) continue;
+    const profile = decoder.decode(bytes.subarray(profileAt, profileAt + length));
+    if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(profile)) continue;
+    out.set(guidLeStr(bytes, entityAt), profile.toLowerCase());
+  }
+  return out;
 }
 
 /** Saved toggle state, keyed by the actual owning entity GUID. */

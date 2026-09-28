@@ -46,6 +46,22 @@ test('real report imports race, HP, abilities, feats and inventory with derived 
  assert.equal(sheet.story,'');assert.equal(sheet.notes,'');
  assert.equal(sheet.slots[3],'2 / 3');assert.equal(sheet.slots[4],'1 / 1');
 });
+test('shared camp storage is separate from a character’s carried inventory',()=>{
+ const r=structuredClone(report);
+ r.camp_chest=[{stats:'UNI_LOOT_AdamantineForge_SplintMold',name:'Splint Mould (Heavy)',count:1},{stats:'UNI_LOOT_AdamantineForge_LongswordMold',name:'Longsword Mould',count:1}];
+ const sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.match(sheet.campChest,/Longsword Mould/);
+ assert.match(sheet.campChest,/Splint Mould/);
+ assert.doesNotMatch(sheet.equipment,/Splint Mould|Longsword Mould/);
+});
+test('a named Traveller’s Chest belongs on its owner’s sheet',()=>{
+ const r=structuredClone(report),name=r.characters[0].name;
+ r.camp_chest=[{stats:'OBJ_GoldCoin',name:'Gold',count:633}];
+ r.camp_chests=[{owner:name,items:[{stats:'UNI_LOOT_AdamantineForge_LongswordMold',name:'Longsword Mould',count:1}]}];
+ const sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(sheet.campChestOwner,name);
+ assert.equal(sheet.campChest,'Longsword Mould');
+});
 test('pact magic remains separate from normal spell slots',()=>{const {sheet}=adaptCharacter(report,report.characters.findIndex(c=>c.name==='Wyll'),blank());assert.doesNotMatch(sheet.resources,/Warlock Spell Slot/);assert.deepEqual(sheet.slots,Array(6).fill(''));assert.deepEqual(sheet.pactSlots,['','','','','2 / 2','']);});
 test('missing ability scores stay unknown and unrecognised race is explicit',()=>{const r=structuredClone(report);r.characters[0].abilities=null;r.characters[0].race='ModdedRace';const {sheet}=adaptCharacter(r,0,blank());assert.equal(sheet.abilities.str,'');assert.equal(sheet.race,'Not recovered');assert.match(sheet.importSummary,/not recovered/);});
 test('multiclass requires recovered individual levels; never divides a total',()=>{

@@ -5,7 +5,7 @@ import {resolveInventory} from '../src/inventory-ownership.mjs';
 const compiled=await build({entryPoints:['vendor/bg3-savefile-parser/ts/parser/src/lsmf.ts'],bundle:true,platform:'node',format:'esm',write:false});
 const {parseLsmfStackAmounts,parseLsmfStackGroups,parseLsmfInventories}=await import('data:text/javascript;base64,'+Buffer.from(compiled.outputFiles[0].text).toString('base64'));
 const compiledParty=await build({entryPoints:['vendor/bg3-savefile-parser/ts/parser/src/party.ts'],bundle:true,platform:'node',format:'esm',write:false});
-const {findCharacterNodeAt}=await import('data:text/javascript;base64,'+Buffer.from(compiledParty.outputFiles[0].text).toString('base64'));
+const {findCharacterNodeAt,collectLiveContainerContents}=await import('data:text/javascript;base64,'+Buffer.from(compiledParty.outputFiles[0].text).toString('base64'));
 // Entirely synthetic heap: the last stack has two members and three entries.
 // The final entry lies outside the old, unadjusted descriptor bounds.
 function fixture(amount=1735){
@@ -22,6 +22,15 @@ function fixture(amount=1735){
 }
 const id=n=>String(n).padStart(8,'0')+'-0000-0000-0000-000000000000';
 test('stack parser reads final records, sums member entries and ignores padding',()=>{const amounts=parseLsmfStackAmounts(fixture());assert.equal(amounts.get(id(1)),160);assert.equal(amounts.get(id(2)),1735);assert.equal(amounts.get(id(3)),1);});
+test('component names use the 32-bit string length when current saves set string flags',()=>{
+ const bytes=fixture(),view=new DataView(bytes.buffer);
+ for(let i=0;i<3;i++)view.setUint32(2560+i*48+12,94,true);
+ assert.equal(parseLsmfStackAmounts(bytes).get(id(2)),1735);
+});
+test('all Traveller chest roots and nested containers are read without worn items',()=>{
+ const inventories=[{owner:'chest-a',items:['splint','bag','worn']},{owner:'bag',items:['longsword']},{owner:'chest-b',items:['mace','splint']},{owner:'someone',items:['shield']}];
+ assert.deepEqual(collectLiveContainerContents(inventories,new Set(['chest-a','chest-b']),new Set(['worn'])),['splint','bag','mace','longsword']);
+});
 test('changed save bytes produce a changed gold count without substitution',()=>{assert.equal(parseLsmfStackAmounts(fixture(2207)).get(id(2)),2207);});
 test('stack groups preserve the final stack members',()=>assert.deepEqual(parseLsmfStackGroups(fixture()).get(id(2)),[id(3)]));
 test('inventory membership controls equipment and nested carried items',()=>{
