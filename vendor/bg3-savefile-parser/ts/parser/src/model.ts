@@ -52,10 +52,12 @@ import {
   buildInstanceEntityLists,
   buildTemplateStatsMap,
   CAMP_RADIUS,
+  CAMP_CHEST_TEMPLATES,
   campDistance,
   clusterAnchorRows,
   collectCharacterPositions,
   collectContainerContents,
+  collectLiveContainerContents,
   collectItemsByPosition,
   collectStatusEquippedItems,
   ecsResolveEquipped,
@@ -1247,6 +1249,35 @@ export function gatherReport(
         )
         .filter(([stats]) => stats)
         .map(([stats, , guid]) => itemRef(stats, guid, { count: chestCount(stats) }));
+    }
+
+    // A camp can hold several Traveller's Chests. Their live owner IDs are
+    // stronger evidence than item positions, which remain at an old character
+    // or ground position after a move. Walk nested containers from every
+    // recognised chest and keep worn items out of shared storage.
+    const chestOwners = new Set(liveInventories
+      .filter((inventory) => CAMP_CHEST_TEMPLATES.has(entityToTemplate0.get(inventory.owner) ?? ''))
+      .map((inventory) => inventory.owner));
+    if (chestOwners.size) {
+      const entityStats = new Map<string, string>();
+      for (const [key, entities] of instanceEntityLists) {
+        const stats = key.slice(key.lastIndexOf('|') + 1);
+        for (const entity of entities) entityStats.set(entity, stats);
+      }
+      const amounts = new Map<string, number>();
+      for (const entity of collectLiveContainerContents(liveInventories, chestOwners, wornEntities)) {
+        const template = entityToTemplate0.get(entity) ?? '';
+        const stats = entityStats.get(entity) ?? templateToStats.get(template) ?? '';
+        if (!stats) continue;
+        const key = stats + '|' + template;
+        amounts.set(key, (amounts.get(key) ?? 0) + (lsmfStackAmounts.get(entity) ?? 1));
+      }
+      report.camp_chest = [...amounts]
+        .map(([key, count]) => {
+          const split = key.indexOf('|');
+          return itemRef(key.slice(0, split), key.slice(split + 1), {count});
+        })
+        .sort((a, b) => String(a.name ?? a.stats).localeCompare(String(b.name ?? b.stats), 'en'));
     }
   }
 

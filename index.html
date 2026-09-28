@@ -80,7 +80,7 @@ const SKILLS=[['Acrobatics','dex'],['Animal Handling','wis'],['Arcana','int'],['
 const CLASSES=['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard'];
 const RACES={'Not recovered':[],Human:[],Elf:['High Elf','Wood Elf'],Drow:['Lolth-Sworn Drow','Seldarine Drow'],Tiefling:['Asmodeus Tiefling','Mephistopheles Tiefling','Zariel Tiefling'],Githyanki:[],Dwarf:['Gold Dwarf','Shield Dwarf','Duergar'],'Half-Elf':['High Half-Elf','Wood Half-Elf','Drow Half-Elf'],Halfling:['Lightfoot Halfling','Strongheart Halfling'],Gnome:['Rock Gnome','Forest Gnome','Deep Gnome'],Dragonborn:['Black','Blue','Brass','Bronze','Copper','Gold','Green','Red','Silver','White'],'Half-Orc':[]};
 const KEY='bg3-character-sheet-v2';
-const blank=()=>({format:'bg3-character-sheet',version:2,importSummary:'',name:'Tav',player:'',background:'',race:'Human',subrace:'',classes:[{name:'Fighter',level:1,subclass:''}],abilities:{str:10,dex:10,con:10,int:10,wis:10,cha:10},skills:{},saves:{},ac:'',initiative:'',speed:'',hp:'',maxHp:'',tempHp:'',xp:'',inspiration:'',attacks:'',features:'',illithidPowers:'',resources:'',conditions:'',armour:'',weapons:'',tools:'',equipment:'',gold:'',story:'',notes:'',spells:'',spellAbility:'',spellAttackBonus:0,spellDcBonus:0,pactSlots:['','','','','',''],slots:['','','','','','']});
+const blank=()=>({format:'bg3-character-sheet',version:2,importSummary:'',name:'Tav',player:'',background:'',race:'Human',subrace:'',classes:[{name:'Fighter',level:1,subclass:''}],abilities:{str:10,dex:10,con:10,int:10,wis:10,cha:10},skills:{},saves:{},ac:'',initiative:'',speed:'',hp:'',maxHp:'',tempHp:'',xp:'',inspiration:'',attacks:'',features:'',illithidPowers:'',resources:'',conditions:'',armour:'',weapons:'',tools:'',equipment:'',campChest:'',gold:'',story:'',notes:'',spells:'',spellAbility:'',spellAttackBonus:0,spellDcBonus:0,pactSlots:['','','','','',''],slots:['','','','','','']});
 let state=blank();
 // Cumulative XP to reach each level. Source of truth: src/save-adapter.mjs
 // (XP_LEVELS); a test asserts this copy matches it.
@@ -124,6 +124,13 @@ function illithidPanel(){
  const powers=state.illithidPowers.split('\n').map(s=>s.trim()).filter(Boolean);
  return `<section class="box illithid-panel"><h2>Illithid powers</h2><p class="legend">${powers.length?`${powers.length} purchased ${powers.length===1?'power':'powers'}`:'No purchased powers recovered'}</p>${powers.length?`<ul>${powers.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}</section>`;
 }
+function campStoragePanel(){
+ const lines=String(state.campChest||'').split('\n').filter(Boolean);
+ if(!lines.length)return '';
+ const perColumn=Math.ceil(lines.length/3);
+ const columns=Array.from({length:3},(_,i)=>lines.slice(i*perColumn,(i+1)*perColumn));
+ return `<article class="sheet camp-storage" id="camp-storage" aria-label="Shared camp storage"><div class="sheet-heading"><h2>Traveller’s Chests</h2><span class="sheet-name" data-name></span></div><p class="legend">Shared camp storage · these items are not carried by this character.</p><div class="camp-storage-columns">${columns.map(col=>`<ul>${col.map(line=>`<li>${esc(line)}</li>`).join('')}</ul>`).join('')}</div><footer class="sheet-foot"><span>Shared camp storage · Unofficial BG3 character record</span><span>3</span></footer></article>`;
+}
 function stat(path,label,auto,shape=''){return `<div class="stat ${shape}"><input aria-label="${label}" type="number" step="${path==='speed'?'any':'1'}" data-path="${path}" value="${esc(get(path))}" ${auto?`data-auto="${auto}"`:''}><label>${label}</label></div>`}
 function render(){document.getElementById('app').innerHTML=`
 ${state.importSummary?`<details class="import-notice"><summary>Imported save details</summary>${esc(state.importSummary)}</details>`:''}<article class="sheet" aria-label="Character sheet">
@@ -144,7 +151,7 @@ ${area('attacks','Attacks & damage','medium')}${area('resources','Actions & reso
 <div class="spellbook-layout">${spellPanel()}<div class="stack"><section class="box slots-panel"><h2>Spell slots</h2><p class="legend">Remaining / maximum</p><div class="slots">${state.slots.map((_,i)=>input('slots.'+i,'Level '+(i+1),'text','placeholder="—"')).join('')}</div>${state.pactSlots.some(Boolean)?`<h3>Pact magic · short-rest recovery</h3><div class="slots pact-slots">${state.pactSlots.map((v,i)=>v?input('pactSlots.'+i,'Level '+(i+1)):'').join('')}</div>`:''}${!state.importSummary?`<div class="spell-adjust">${input('spellDcBonus','Extra save DC','number')}${input('spellAttackBonus','Extra attack bonus','number')}</div>`:''}</section>${illithidPanel()}</div></div>
 ${equipmentPanel()}
 
-<footer class="sheet-foot"><span>Spells & equipment · <span data-name></span></span><span>2</span></footer></article>`;
+<footer class="sheet-foot"><span>Spells & equipment · <span data-name></span></span><span>2</span></footer></article>${campStoragePanel()}`;
 renderClasses();renderSubrace();calculate();
  document.getElementById('app').classList.toggle('imported',Boolean(state.importSummary));
  if(state.importSummary)document.querySelectorAll('#app input,#app select,#app textarea').forEach(el=>{if(el.dataset.path==='player')return;if(el.tagName==='SELECT'||el.type==='checkbox')el.disabled=true;else el.readOnly=true;});

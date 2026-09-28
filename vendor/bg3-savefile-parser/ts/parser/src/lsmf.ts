@@ -97,7 +97,8 @@ function scanLsmfBlobUncached(blob: Uint8Array): ScannedBlob | null {
       const base = descBase + i * 48;
       if (base + 48 > L) break;
       const nameOff = u64(dv, base);
-      const nameLen = u64(dv, base + 8);
+      // Current saves store a 32-bit length followed by 32-bit string flags.
+      const nameLen = dv.getUint32(base + 8, true);
       const elemSize = dv.getUint32(base + 24, true);
       const rowCount = u64(dv, base + 32);
       const dataOffset = u64(dv, base + 40);
