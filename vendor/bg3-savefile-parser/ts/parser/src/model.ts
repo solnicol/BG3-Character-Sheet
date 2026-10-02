@@ -141,6 +141,7 @@ export interface CharacterReport {
   resources: ResourceEntry[] | null;
   concentration: { id: string; name: string | null } | null;
   feats: FeatEntry[] | null;
+  feat_note?: string;
   // Reaction abilities (the in-game Reactions panel), resolved to game-file
   // names; null when no interrupt row matched this character.
   reactions: string[] | null;
@@ -1151,6 +1152,18 @@ export function gatherReport(
           .map((c) => `${c.Main ?? ''}\x00${c.Sub ?? ''}`)
           .sort();
         attachFeats(char, `${campWant.join('\x01')}|${char.level}`);
+        // A camp NPC can have a saved level and spells without a matching
+        // player level-up history. Jaheira's current form has no such record.
+        const classNamesInSave = (char.classes as { Main?: string }[])
+          .map((c) => c.Main ?? '').sort().join('\x01');
+        const hasClassHistory = levelupRecords.some((rec) =>
+          rec.levels.length === char.level &&
+          [...new Set(rec.levels.map(([guid]) => dn.classUuidNames[guid] ?? ''))]
+            .sort().join('\x01') === classNamesInSave,
+        );
+        if (!char.feats && !hasClassHistory) {
+          char.feat_note = 'No level-up choices are saved for this companion’s current form; feats and chosen proficiencies cannot be confirmed.';
+        }
       } else if (baseClass && sameClass > 1) {
         char.spells_note = 'ambiguous-build';
       } else {

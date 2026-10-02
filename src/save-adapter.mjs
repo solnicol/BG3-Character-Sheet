@@ -330,13 +330,14 @@ export function adaptCharacter(report,index,template){
  out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',reactions.length?'\n\nReactions\n'+reactions.join('\n'):''].join('');
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
+ if(c.feat_note)out.features+=(out.features?'\n\n':'')+'Feat choices\n'+c.feat_note;
  out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');
  if(c.equipment_note)warnings.push('Equipment: '+c.equipment_note+'.');
  // The first standard feat is earned at class level 4, not total level 4.
  // A Bard 3 / Wizard 2 therefore has no feat choice to recover yet.
- if(!c.feats&&out.classes.some(c=>c.level>=4))warnings.push('Feat choices were not recovered; an empty list does not mean no feats.');
+ if(!c.feats&&!c.feat_note&&out.classes.some(c=>c.level>=4))warnings.push('Feat choices were not recovered; an empty list does not mean no feats.');
  out.spellAbility=spellAbility;
  out.importSummary='Imported from '+text(report.source)+'. '+warnings.join(' ');
  // These are deliberately left as clean writing areas. Save metadata and
