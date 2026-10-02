@@ -15,6 +15,15 @@ test('missing feats only warn after a class reaches its first feat level',()=>{
  c.feats=[{name:'Alert',level:4}];
  assert.ok(!adaptCharacter(r,0,blank()).warnings.some(w=>w.startsWith('Feat choices')));
 });
+test('a camp companion without saved level-up choices has an explicit sheet note',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.name='Jaheira';c.level=8;c.class_levels=[{name:'Druid',level:8}];c.feats=null;
+ c.feat_note='No level-up choices are saved for this companion’s current form; feats and chosen proficiencies cannot be confirmed.';
+ const {sheet,warnings}=adaptCharacter(r,0,blank());
+ assert.match(sheet.features,/Feat choices\nNo level-up choices are saved/);
+ assert.ok(!warnings.some(w=>w.startsWith('Feat choices were not recovered')));
+ assert.equal(c.feats,null);
+});
 test('Bracers of Defence add conditional AC from equipped gloves, not inventory or selected passives',()=>{
  const r=structuredClone(report),c=r.characters[0];
  c.class_levels=[{name:'Monk',subclass:'OpenHand',level:4}];c.level=4;
