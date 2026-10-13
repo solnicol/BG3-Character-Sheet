@@ -582,3 +582,52 @@ test('Harpers amulet Shield resource retains remaining charges and its readable 
  c.resources[0].current=0;
  assert.equal(adaptCharacter(r,0,blank()).sheet.resources,'Shield (Amulet of the Harpers): 0 / 1');
 });
+
+test('Monk manifestations remain visible when off and add only active damage to unarmed attacks',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.level=6;c.class_levels=[{name:'Monk',subclass:'OpenHand',level:6}];
+ c.abilities={str:12,dex:18,con:14,int:8,wis:16,cha:8};c.proficiency_bonus=3;c.selected_passives=[];
+ c.equipped=[{name:'Quarterstaff',stats:'WPN_Quarterstaff',slot:'Melee Main Weapon',count:1}];
+ c.passive_toggles={Manifestation_of_Body:false,Manifestation_of_Mind:false,Manifestation_of_Soul:false};
+ let sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.match(sheet.features,/Manifestation of Mind: OFF — adds 1d4 \+3 psychic/);
+ assert.doesNotMatch(sheet.attacks,/psychic|necrotic|radiant/);
+ for(const [name,type] of [['Body','necrotic'],['Mind','psychic'],['Soul','radiant']]){
+  for(const key of Object.keys(c.passive_toggles))c.passive_toggles[key]=key==='Manifestation_of_'+name;
+  sheet=adaptCharacter(r,0,blank()).sheet;
+  assert.ok(sheet.attacks.includes('Unarmed strike: +7 to hit, 1d6 +4 bludgeoning + 1d4 +3 '+type));
+  assert.doesNotMatch(sheet.attacks.split('\n')[0],/psychic|necrotic|radiant/);
+ }
+ c.passive_toggles={};sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.doesNotMatch(sheet.features,/Manifestation/);
+});
+
+test('active Mage Armour replaces clothing base, does not stack with Monk defence or armour',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.level=6;c.class_levels=[{name:'Wizard',subclass:'EvocationSchool',level:6}];
+ c.abilities={str:8,dex:16,con:14,int:18,wis:18,cha:8};c.selected_passives=[];
+ c.equipped=[{name:'Robe',stats:'ARM_Robe',slot:'Breast'},{name:'Shield',stats:'ARM_Shield',slot:'Melee Offhand Weapon'}];
+ c.statuses=[{id:'MAGE_ARMOR',permanent:false}];assert.equal(adaptCharacter(r,0,blank()).sheet.ac,18);
+ c.statuses=[];assert.equal(adaptCharacter(r,0,blank()).sheet.ac,15);
+ c.statuses=[{id:'MAGE_ARMOR'}];c.equipped.pop();c.class_levels=[{name:'Monk',subclass:'OpenHand',level:6}];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,17);
+ c.equipped[0]={name:'Scale Mail',stats:'ARM_ScaleMail',slot:'Breast'};
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,16);
+});
+test('equipped Marksmanship Hat affects main ranged accuracy, not damage, melee or offhand',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.level=6;c.class_levels=[{name:'Fighter',subclass:'BattleMaster',level:6}];
+ c.abilities={str:10,dex:18,con:16,int:8,wis:14,cha:8};c.proficiency_bonus=3;c.equipment_proficiencies=['Martial Weapons'];c.selected_passives=[];c.passive_toggles={};
+ c.equipped=[{name:'Hat',stats:'MAG_ofMarksmanship_Hat',slot:'Helmet'},{name:'Hand Crossbow',stats:'WPN_HandCrossbow',slot:'Ranged Main Weapon'},{name:'Hand Crossbow',stats:'WPN_HandCrossbow',slot:'Ranged Offhand Weapon'},{name:'Rapier',stats:'WPN_Rapier',slot:'Melee Main Weapon'}];
+ const sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.match(sheet.attacks,/Hand Crossbow: \+8 to hit, 1d6 \+4 piercing/);
+ assert.match(sheet.attacks,/Hand Crossbow: \+7 to hit, 1d6 piercing/);
+ assert.match(sheet.attacks,/Rapier: \+7 to hit/);assert.equal(sheet.spellAttackBonus,1);
+ c.carried=[c.equipped.shift()];assert.equal(adaptCharacter(r,0,blank()).sheet.spellAttackBonus,0);
+});
+test('Crushing gloves add unarmed bonuses and combine with the active manifestation only while worn',()=>{
+ const r=structuredClone(report),c=r.characters[0];c.level=6;c.class_levels=[{name:'Monk',subclass:'OpenHand',level:6}];
+ c.abilities={str:12,dex:18,con:14,int:8,wis:16,cha:8};c.proficiency_bonus=3;c.selected_passives=[];
+ c.equipped=[{name:'Gloves',stats:'MAG_BG_OfCrushing_Gloves',slot:'Gloves'}];c.passive_toggles={Manifestation_of_Mind:true};
+ assert.equal(adaptCharacter(r,0,blank()).sheet.attacks,'Unarmed strike: +9 to hit, 1d6 +6 bludgeoning + 1d4 +3 psychic');
+ c.carried=c.equipped;c.equipped=[];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.attacks,'Unarmed strike: +7 to hit, 1d6 +4 bludgeoning + 1d4 +3 psychic');
+});

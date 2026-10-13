@@ -194,6 +194,9 @@ export function adaptCharacter(report,index,template){
      const abilityMod=a=>Number.isInteger(out.abilities[a])?Math.floor((out.abilities[a]-10)/2):null;
      const con=abilityMod('con'), wis=abilityMod('wis');
      const defences=[];
+     // Mage Armour replaces the base calculation; it never stacks with
+     // Unarmoured Defence. A shield does not suppress Mage Armour.
+     if(unarmoured&&(c.statuses||[]).some(s=>s.id==='MAGE_ARMOR'))defences.push(3);
      if(unarmoured&&classNames.has('Barbarian')&&con!==null)defences.push(con);
      if(unarmoured&&classNames.has('Monk')&&!shieldItem&&wis!==null)defences.push(wis);
      const unarmouredDefence=defences.length?Math.max(...defences):0;
@@ -246,10 +249,20 @@ export function adaptCharacter(report,index,template){
  // https://bg3.wiki/wiki/Monk
  const monkLevel=out.classes.filter(x=>x.name==='Monk').reduce((n,x)=>n+x.level,0);
  const martialDie=monkLevel>=9?8:monkLevel>=3?6:4;
+ // These are saved toggleable passives, not spellbook entries.
+ // https://bg3.wiki/wiki/Manifestation_of_Mind (Body: necrotic; Soul: radiant).
+ const manifestationWis=modifier(out.abilities.wis);
+ const manifestations=['Body','Mind','Soul'].flatMap((name,index)=>{
+   const id='Manifestation_of_'+name;
+   if(!Object.hasOwn(c.passive_toggles||{},id))return [];
+   const mod=manifestationWis===null?' + ?':manifestationWis===0?'':manifestationWis>0?' +'+manifestationWis:' '+manifestationWis;
+   return [{name:'Manifestation of '+name,active:c.passive_toggles[id]===true,damage:`1d4${mod} ${['necrotic','psychic','radiant'][index]}`}];
+ });
  const monkWeaponTypes=new Set(['Rapier','Shortsword','Scimitar','Dagger','Longsword','Battleaxe','Handaxe','Warhammer','Light Hammer','Mace','Quarterstaff','Spear','Javelin','Club','Trident','War Pick','Sickle','Flail','Morningstar']);
  const prof=integer(c.proficiency_bonus,0,10)?c.proficiency_bonus:2+Math.floor((out.classes.reduce((n,x)=>n+x.level,0)-1)/4);
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
- out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0);
+ const marksmanship=wornItems.some(i=>i.slot==='Helmet'&&i.stats==='MAG_ofMarksmanship_Hat')?1:0;
+ out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0)+marksmanship;
  out.spellDcBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellDcBonus,0);
  const attackLines=attackItems.map(i=>{
    const w=weaponProperties(i),str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
@@ -264,7 +277,9 @@ export function adaptCharacter(report,index,template){
    const ranged=w.ability==='dex',archery=ranged&&passives.has('FightingStyle_Archery')?2:0;
    const archeryGloves=ranged&&wornItems.some(x=>x.stats==='UNI_ARM_OfArchery_Gloves')?2:0;
    const allIn=ranged&&proficient&&c.passive_toggles?.Sharpshooter_AllIn===true;
-   const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery-(allIn?5:0);
+   // Marksmanship does not affect off-hand crossbows or melee weapons.
+   const hatBonus=ranged&&!/Offhand/.test(i.slot||'')?marksmanship:0;
+   const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery+hatBonus-(allIn?5:0);
    const offhand=/Offhand/.test(i.slot||'');
    const damageAbility=offhand&&m>0&&!passives.has('FightingStyle_TwoWeaponFighting')?0:m;
    const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer','Trident'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
@@ -285,7 +300,13 @@ export function adaptCharacter(report,index,template){
    const str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
    const m=str===null||dex===null?null:Math.max(str,dex);
    const signed=n=>n>=0?'+'+n:String(n);
-   attackLines.push(`Unarmed strike: ${m===null?'?':signed(m+prof)} to hit, 1d${martialDie}${m===null?' + ?':m?' '+signed(m):''} bludgeoning`);
+   // Crushing Blows: +2 bludgeoning. In BG3 both +1 unarmed roll boosts
+   // apply to melee unarmed attacks (documented double-application behaviour).
+   // https://bg3.wiki/wiki/Gloves_of_Crushing
+   const crushing=wornItems.some(i=>i.slot==='Gloves'&&i.stats==='MAG_BG_OfCrushing_Gloves')?2:0;
+   const damage=m===null?null:m+crushing;
+   const manifestationDamage=manifestations.filter(x=>x.active).map(x=>' + '+x.damage).join('');
+   attackLines.push(`Unarmed strike: ${m===null?'?':signed(m+prof+crushing)} to hit, 1d${martialDie}${damage===null?' + ?':damage?' '+signed(damage):''} bludgeoning${manifestationDamage}`);
  }
  out.attacks=attackLines.join('\n');
  // An enhancement the sheet cannot see makes every figure on a weapon's line
@@ -334,6 +355,7 @@ export function adaptCharacter(report,index,template){
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
  if(c.feat_note)out.features+=(out.features?'\n\n':'')+'Feat choices\n'+c.feat_note;
+ if(manifestations.length)out.features+=(out.features?'\n\n':'')+manifestations.map(x=>`${x.name}: ${x.active?'ON':'OFF'} — adds ${x.damage} to unarmed attacks when active.`).join('\n');
  // Conditional spell-attack bonuses must not inflate melee spells or save DC.
  const rangedSpellBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).rangedSpellAttackBonus,0);
  if(rangedSpellBonus)out.features+=(out.features?'\n\n':'')+`Ranged spell attacks: +${rangedSpellBonus} in addition to the spell attack bonus shown.`;
