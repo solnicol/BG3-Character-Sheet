@@ -559,3 +559,18 @@ test('Incandescent Staff only boosts ranged spell attacks while equipped',()=>{
  c.carried=c.equipped;c.equipped=[];sheet=adaptCharacter(r,0,blank()).sheet;
  assert.doesNotMatch(sheet.features,/Ranged spell attacks:/);
 });
+
+test('Sharpened Snare Cuirass uses base 14 and full saved Dexterity, not ordinary hide rules',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.abilities={str:10,dex:18,con:16,int:8,wis:14,cha:8};
+ c.level=6;c.class_levels=[{name:'Fighter',subclass:'BattleMaster',level:6}];c.selected_passives=['FightingStyle_Archery'];c.statuses=[];
+ c.equipped=[{stats:'MAG_Druid_Late_Hide_Armor_2',name:'Localised cuirass',slot:'Breast',count:1},
+ {stats:'GOB_Priest_Shield',name:"Absolute's Warboard",slot:'Melee Offhand Weapon',count:1}];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,20);
+ c.abilities.dex=20;
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,21);
+ c.equipped.pop();
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,19);
+ c.equipped[0]={stats:'ARM_Hide',name:'Hide Armour',slot:'Breast',count:1};
+ assert.equal(adaptCharacter(r,0,blank()).sheet.ac,14);
+});
