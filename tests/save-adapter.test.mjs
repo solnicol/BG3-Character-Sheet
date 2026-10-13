@@ -538,3 +538,24 @@ test('a character with no statuses keeps the conditions box empty',()=>{
  delete c.statuses;c.concentration=null;
  assert.equal(adaptCharacter(r,0,blank()).sheet.conditions,'');
 });
+
+test('named enchantments and replacement damage types survive localised display names',()=>{
+ for(const [stats,base,enhancement,damage] of [
+  ['MAG_FlamingFist_StaffOfFire','Quarterstaff',0,'bludgeoning'],
+  ['MAG_MagicMissile_HandCrossbow','Hand Crossbow',1,'force'],
+  ['MAG_Drowelf_SpiderSnare_Longsword','Longsword',1,'slashing']]){
+  const item={stats,name:'Localised name'};
+  const w=weaponProperties(item);
+  assert.equal(w.name,base);assert.equal(w.enhancement,enhancement);assert.equal(w.damage,damage);
+  assert.equal(weaponEnhancementUnknown(item),false);
+ }
+});
+test('Incandescent Staff only boosts ranged spell attacks while equipped',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.equipped=[{stats:'MAG_FlamingFist_StaffOfFire',name:'Incandescent Staff',slot:'Melee Main Weapon',count:1}];
+ let sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(sheet.spellAttackBonus,0);assert.equal(sheet.spellDcBonus,0);
+ assert.match(sheet.features,/Ranged spell attacks: \+1/);
+ c.carried=c.equipped;c.equipped=[];sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.doesNotMatch(sheet.features,/Ranged spell attacks:/);
+});
