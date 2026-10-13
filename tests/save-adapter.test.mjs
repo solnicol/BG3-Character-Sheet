@@ -574,3 +574,11 @@ test('Sharpened Snare Cuirass uses base 14 and full saved Dexterity, not ordinar
  c.equipped[0]={stats:'ARM_Hide',name:'Hide Armour',slot:'Breast',count:1};
  assert.equal(adaptCharacter(r,0,blank()).sheet.ac,14);
 });
+
+test('Harpers amulet Shield resource retains remaining charges and its readable label',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.resources=[{guid:'0d157939-3ede-45aa-a153-e8c2e47edb74',name:'Shield (Amulet of the Harpers)',level:0,current:1,max:1}];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.resources,'Shield (Amulet of the Harpers): 1 / 1');
+ c.resources[0].current=0;
+ assert.equal(adaptCharacter(r,0,blank()).sheet.resources,'Shield (Amulet of the Harpers): 0 / 1');
+});
