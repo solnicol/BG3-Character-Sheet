@@ -81,6 +81,9 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // gamedata.json records for this stats ID.
 // Reaper's Embrace: heavy, class 19, per its stat block on bg3.wiki.
 export const NAMED_ARMOUR=new Map([
+ // https://bg3.wiki/wiki/Sharpened_Snare_Cuirass
+ // Exotic Material allows the full Dexterity modifier despite medium armour.
+ ['MAG_Druid_Late_Hide_Armor_2',{name:'Sharpened Snare Cuirass',type:'medium',ac:14,dexCap:Infinity}],
  // https://bg3.wiki/wiki/Simple_Jerkin
  ['ARM_Bard',{name:'Simple Jerkin',type:'light',ac:11}],
  ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
@@ -158,7 +161,7 @@ export function adaptCharacter(report,index,template){
  const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale ?Mail/i,14,2],[/Studded/i,12,Infinity],[/Padded/i,11,Infinity],[/Leather/i,11,Infinity],[/Splint/i,17,0],[/Plate/i,18,0],[/Chain ?Mail/i,16,0],[/Chain ?Shirt/i,13,2],[/Ring ?Mail/i,14,0],[/Hide/i,12,2]];
  const armourFamily=i=>{
    const named=NAMED_ARMOUR.get(i.stats);
-   if(named)return {base:named.ac,dexCap:DEX_CAP[named.type],named};
+   if(named)return {base:named.ac,dexCap:named.dexCap??DEX_CAP[named.type],named};
    const text=`${i.name||''} ${i.stats||''}`;
    // A real armour family wins over an accidental clothing word.
    const row=armourBases.find(([pattern])=>pattern.test(text));

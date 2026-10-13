@@ -51,7 +51,12 @@ export class DisplayNames {
     this.subSpells = new Set(data?.sub_spells ?? []);
     this.questNames = data?.quest_names ?? {};
     this.questObjectives = data?.quest_objectives ?? {};
-    this.actionResources = data?.action_resources ?? {};
+    this.actionResources = {
+      // Game ActionResourceDefinition: Interrupt_MAG_Shield_HarpersAmulet.
+      // https://bg3.norbyte.dev/search?q=0d157939-3ede-45aa-a153-e8c2e47edb74
+      '0d157939-3ede-45aa-a153-e8c2e47edb74': 'Shield (Amulet of the Harpers)',
+      ...data?.action_resources,
+    };
     this.featNames = data?.feat_names ?? {};
     this.subregions = data?.subregions ?? {};
     this.classUuidNames = data?.class_uuid_names ?? {};
