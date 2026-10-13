@@ -582,3 +582,22 @@ test('Harpers amulet Shield resource retains remaining charges and its readable 
  c.resources[0].current=0;
  assert.equal(adaptCharacter(r,0,blank()).sheet.resources,'Shield (Amulet of the Harpers): 0 / 1');
 });
+
+test('Monk manifestations remain visible when off and add only active damage to unarmed attacks',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.level=6;c.class_levels=[{name:'Monk',subclass:'OpenHand',level:6}];
+ c.abilities={str:12,dex:18,con:14,int:8,wis:16,cha:8};c.proficiency_bonus=3;c.selected_passives=[];
+ c.equipped=[{name:'Quarterstaff',stats:'WPN_Quarterstaff',slot:'Melee Main Weapon',count:1}];
+ c.passive_toggles={Manifestation_of_Body:false,Manifestation_of_Mind:false,Manifestation_of_Soul:false};
+ let sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.match(sheet.features,/Manifestation of Mind: OFF — adds 1d4 \+3 psychic/);
+ assert.doesNotMatch(sheet.attacks,/psychic|necrotic|radiant/);
+ for(const [name,type] of [['Body','necrotic'],['Mind','psychic'],['Soul','radiant']]){
+  for(const key of Object.keys(c.passive_toggles))c.passive_toggles[key]=key==='Manifestation_of_'+name;
+  sheet=adaptCharacter(r,0,blank()).sheet;
+  assert.ok(sheet.attacks.includes('Unarmed strike: +7 to hit, 1d6 +4 bludgeoning + 1d4 +3 '+type));
+  assert.doesNotMatch(sheet.attacks.split('\n')[0],/psychic|necrotic|radiant/);
+ }
+ c.passive_toggles={};sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.doesNotMatch(sheet.features,/Manifestation/);
+});

@@ -246,6 +246,15 @@ export function adaptCharacter(report,index,template){
  // https://bg3.wiki/wiki/Monk
  const monkLevel=out.classes.filter(x=>x.name==='Monk').reduce((n,x)=>n+x.level,0);
  const martialDie=monkLevel>=9?8:monkLevel>=3?6:4;
+ // These are saved toggleable passives, not spellbook entries.
+ // https://bg3.wiki/wiki/Manifestation_of_Mind (Body: necrotic; Soul: radiant).
+ const manifestationWis=modifier(out.abilities.wis);
+ const manifestations=['Body','Mind','Soul'].flatMap((name,index)=>{
+   const id='Manifestation_of_'+name;
+   if(!Object.hasOwn(c.passive_toggles||{},id))return [];
+   const mod=manifestationWis===null?' + ?':manifestationWis===0?'':manifestationWis>0?' +'+manifestationWis:' '+manifestationWis;
+   return [{name:'Manifestation of '+name,active:c.passive_toggles[id]===true,damage:`1d4${mod} ${['necrotic','psychic','radiant'][index]}`}];
+ });
  const monkWeaponTypes=new Set(['Rapier','Shortsword','Scimitar','Dagger','Longsword','Battleaxe','Handaxe','Warhammer','Light Hammer','Mace','Quarterstaff','Spear','Javelin','Club','Trident','War Pick','Sickle','Flail','Morningstar']);
  const prof=integer(c.proficiency_bonus,0,10)?c.proficiency_bonus:2+Math.floor((out.classes.reduce((n,x)=>n+x.level,0)-1)/4);
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
@@ -285,7 +294,8 @@ export function adaptCharacter(report,index,template){
    const str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
    const m=str===null||dex===null?null:Math.max(str,dex);
    const signed=n=>n>=0?'+'+n:String(n);
-   attackLines.push(`Unarmed strike: ${m===null?'?':signed(m+prof)} to hit, 1d${martialDie}${m===null?' + ?':m?' '+signed(m):''} bludgeoning`);
+   const manifestationDamage=manifestations.filter(x=>x.active).map(x=>' + '+x.damage).join('');
+   attackLines.push(`Unarmed strike: ${m===null?'?':signed(m+prof)} to hit, 1d${martialDie}${m===null?' + ?':m?' '+signed(m):''} bludgeoning${manifestationDamage}`);
  }
  out.attacks=attackLines.join('\n');
  // An enhancement the sheet cannot see makes every figure on a weapon's line
@@ -334,6 +344,7 @@ export function adaptCharacter(report,index,template){
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
  if(c.feat_note)out.features+=(out.features?'\n\n':'')+'Feat choices\n'+c.feat_note;
+ if(manifestations.length)out.features+=(out.features?'\n\n':'')+manifestations.map(x=>`${x.name}: ${x.active?'ON':'OFF'} — adds ${x.damage} to unarmed attacks when active.`).join('\n');
  // Conditional spell-attack bonuses must not inflate melee spells or save DC.
  const rangedSpellBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).rangedSpellAttackBonus,0);
  if(rangedSpellBonus)out.features+=(out.features?'\n\n':'')+`Ranged spell attacks: +${rangedSpellBonus} in addition to the spell attack bonus shown.`;
