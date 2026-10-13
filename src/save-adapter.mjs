@@ -331,6 +331,9 @@ export function adaptCharacter(report,index,template){
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
  if(c.feat_note)out.features+=(out.features?'\n\n':'')+'Feat choices\n'+c.feat_note;
+ // Conditional spell-attack bonuses must not inflate melee spells or save DC.
+ const rangedSpellBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).rangedSpellAttackBonus,0);
+ if(rangedSpellBonus)out.features+=(out.features?'\n\n':'')+`Ranged spell attacks: +${rangedSpellBonus} in addition to the spell attack bonus shown.`;
  out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');

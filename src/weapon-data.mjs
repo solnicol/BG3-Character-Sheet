@@ -32,6 +32,12 @@ const QUARTERSTAFF=/Quaterstaff|\bStaff/i;
 // modifier the weapon adds to damage on top of its own, with `extraMin` as the
 // floor the weapon guarantees.
 export const NAMED_WEAPONS=new Map([
+ // https://bg3.wiki/wiki/Incandescent_Staff: no weapon enchantment; ranged spells only.
+ ['MAG_FlamingFist_StaffOfFire',{name:'Incandescent Staff',base:'Quarterstaff',enhancement:0,rangedSpellAttackBonus:1}],
+ // https://bg3.wiki/wiki/Ne%27er_Misser: force replaces the base piercing damage.
+ ['MAG_MagicMissile_HandCrossbow',{name:"Ne'er Misser",base:'Hand Crossbow',enhancement:1,damage:'force'}],
+ // https://bg3.wiki/wiki/Cruel_Sting: poison requires a drow and a restrained target.
+ ['MAG_Drowelf_SpiderSnare_Longsword',{name:'Cruel Sting',base:'Longsword',enhancement:1}],
  // https://bg3.wiki/wiki/Sword_of_Screams: unenchanted finesse rapier.
  ['UND_Nere_Sword',{name:'Sword of Screams',base:'Rapier',enhancement:0,bonusDamage:{die:'1d4',type:'psychic'}}],
  // https://bg3.wiki/wiki/Melf%27s_First_Staff: +1 weapon, plus Arcane Enchantment.
@@ -104,8 +110,8 @@ export function weaponProperties(item) {
   ?? weapons.find(([name])=>new RegExp(`\\b${name.replaceAll(' ','\\s*')}\\b`,'i').test(label))
   ?? (QUARTERSTAFF.test(label)?weapons.find(([name])=>name==='Quarterstaff'):undefined);
  if(!row)return null;
- return {name:row[0],die:row[1],damage:row[2],ability:named?.ability??row[3],group:row[4],
+ return {name:row[0],die:row[1],damage:named?.damage??row[2],ability:named?.ability??row[3],group:row[4],
   enhancement:named?named.enhancement:Number((item.name||'').match(/\+(\d+)\b/)?.[1]||0),
   extra:named?.extra??null,extraMin:named?.extraMin??0,bonusDamage:named?.bonusDamage??null,
-  spellAttackBonus:named?.spellAttackBonus??0,spellDcBonus:named?.spellDcBonus??0};
+  spellAttackBonus:named?.spellAttackBonus??0,spellDcBonus:named?.spellDcBonus??0,rangedSpellAttackBonus:named?.rangedSpellAttackBonus??0};
 }
