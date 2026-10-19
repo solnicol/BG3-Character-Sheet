@@ -55,6 +55,9 @@ export class DisplayNames {
       // Game ActionResourceDefinition: Interrupt_MAG_Shield_HarpersAmulet.
       // https://bg3.norbyte.dev/search?q=0d157939-3ede-45aa-a153-e8c2e47edb74
       '0d157939-3ede-45aa-a153-e8c2e47edb74': 'Shield (Amulet of the Harpers)',
+      // Game ActionResourceDefinition: Interrupt_MAG_ParalyzingCritical.
+      // https://bg3.norbyte.dev/search?q=78236f5a-94d5-4f8b-bb54-16f5508723e6
+      '78236f5a-94d5-4f8b-bb54-16f5508723e6': 'Paralysing Critical (Surgeon’s Subjugation Amulet)',
       ...data?.action_resources,
     };
     this.featNames = data?.feat_names ?? {};
