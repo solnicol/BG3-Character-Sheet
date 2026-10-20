@@ -163,9 +163,10 @@ function renderSubrace(){const opts=RACES[state.race];document.getElementById('s
 function calculate(){
  const p=proficiency(state),perception=skillBonus(state,'Perception','wis'),spellMod=state.spellAbility?mod(state.abilities[state.spellAbility]):null;
  const lv=level(state),xpFloor=XP_LEVELS[lv],xpCeiling=lv<12?XP_LEVELS[lv+1]:null;
- // Suppressed rather than guessed when the total falls outside the level's band.
- const xpOk=Number.isInteger(state.xp)&&state.xp>=xpFloor&&(xpCeiling===null||state.xp<xpCeiling);
- const values={proficiency:signed(p),level:lv,xpInLevel:xpOk?(state.xp-xpFloor).toLocaleString('en-GB')+(xpCeiling===null?'':' / '+(xpCeiling-xpFloor).toLocaleString('en-GB')):'—',xpNext:xpOk&&xpCeiling!==null?(xpCeiling-state.xp).toLocaleString('en-GB'):'—',xpNextLabel:xpCeiling===null?'Maximum level':'To level '+(lv+1),passive:perception===null?'?':10+perception,spellDc:spellMod===null?'—':8+spellMod+p+Number(state.spellDcBonus),spellAttack:spellMod===null?'—':signed(spellMod+p+Number(state.spellAttackBonus))};
+ // Suppressed rather than guessed when the total falls below the level's floor;
+ // a total past the next threshold is a level up the player has not taken.
+ const xpOk=Number.isInteger(state.xp)&&state.xp>=xpFloor,xpReady=xpOk&&xpCeiling!==null&&state.xp>=xpCeiling;
+ const values={proficiency:signed(p),level:lv,xpInLevel:xpOk?(state.xp-xpFloor).toLocaleString('en-GB')+(xpCeiling===null?'':' / '+(xpCeiling-xpFloor).toLocaleString('en-GB')):'—',xpNext:xpReady?'Ready':xpOk&&xpCeiling!==null?(xpCeiling-state.xp).toLocaleString('en-GB'):'—',xpNextLabel:xpCeiling===null?'Maximum level':xpReady?'Level up available':'To level '+(lv+1),passive:perception===null?'?':10+perception,spellDc:spellMod===null?'—':8+spellMod+p+Number(state.spellDcBonus),spellAttack:spellMod===null?'—':signed(spellMod+p+Number(state.spellAttackBonus))};
  for(const a in ABILITIES){const m=mod(state.abilities[a]);values['mod-'+a]=displayBonus(m);values['save-'+a]=displayBonus(m===null||state.saves[a]===null?null:m+(state.saves[a]?p:0));const el=document.querySelector('[data-path="saves.'+a+'"]');if(el){el.indeterminate=state.saves[a]===null;el.title=state.saves[a]===null?'Saving throw proficiency unavailable in this save':'Saving throw proficiency';}}
  for(const[name,a]of SKILLS)values['skill-'+name]=displayBonus(skillBonus(state,name,a));
  document.querySelectorAll('[data-calc]').forEach(el=>el.textContent=values[el.dataset.calc]);const dex=mod(state.abilities.dex);

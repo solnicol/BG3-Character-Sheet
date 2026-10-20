@@ -110,14 +110,19 @@ const PLAIN_ENHANCEMENT=new Set([
 export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!PLAIN_ENHANCEMENT.has(i.stats)&&!/\+\d/.test(i.name||'');
 export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
-// Progress through the current level, or null when the totals disagree with
-// the table (a modded XP curve, or a future patch retuning it). A wrong
+// Progress through the current level, or null when the total sits below the
+// level's floor (a modded XP curve, or a future patch retuning it). A wrong
 // "XP to next level" is worse than none, so callers show nothing instead.
+// A total at or past the next threshold is not a disagreement: the game lets
+// a character bank the experience and take the level later, so it reports
+// the level up as ready, with `reachable` the highest level the total buys.
 export function xpProgress(xp,level){
  if(!integer(xp,0,10000000)||!integer(level,1,12))return null;
  const floor=XP_LEVELS[level],ceiling=level<12?XP_LEVELS[level+1]:null;
- if(xp<floor||(ceiling!==null&&xp>=ceiling))return null;
- return {within:xp-floor,band:ceiling===null?null:ceiling-floor,remaining:ceiling===null?null:ceiling-xp};
+ if(xp<floor)return null;
+ const levelUp=ceiling!==null&&xp>=ceiling;
+ const reachable=levelUp?XP_LEVELS.findLastIndex(n=>n!==null&&n<=xp):level;
+ return {within:xp-floor,band:ceiling===null?null:ceiling-floor,remaining:ceiling===null?null:Math.max(0,ceiling-xp),levelUp,reachable};
 }
 export function characterClasses(c){
  const total=Number(c.level);
@@ -154,7 +159,9 @@ export function adaptCharacter(report,index,template){
  // progress within the current level instead. Keep the save's number and let
  // the sheet derive the in-level figures from it.
  out.xp=integer(c.xp,0,10000000)?c.xp:'';
- if(out.xp!==''&&!xpProgress(out.xp,out.classes.reduce((n,x)=>n+x.level,0)))warnings.push('Experience total '+out.xp+' does not match the expected range for this level, so progress to the next level is not shown.');
+ const xpLevel=out.classes.reduce((n,x)=>n+x.level,0),xpState=out.xp===''?undefined:xpProgress(out.xp,xpLevel);
+ if(xpState===null)warnings.push('Experience total '+out.xp+' is below the expected range for this level, so progress to the next level is not shown.');
+ else if(xpState?.levelUp)warnings.push('Level up available: '+out.xp+' experience reaches level '+xpState.reachable+', but it has not been taken in game yet, so this sheet shows level '+xpLevel+'.');
  out.hp=integer(c.hp?.current)?c.hp.current:'';out.maxHp=integer(c.hp?.max)?c.hp.max:'';out.tempHp=integer(c.hp?.temp)?c.hp.temp:'';
  if(!c.hp)warnings.push('Hit points were not recovered.');
  const resources=c.resources||[];
