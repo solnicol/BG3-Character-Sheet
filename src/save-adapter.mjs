@@ -76,10 +76,10 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // stable across saves and localisations where a display name is not, and its
 // class is the item's finished number, enchantment included.
 //
-// Luminous Armour: medium, class 15, Dexterity capped at +2, per its stat
-// block on bg3.wiki. The rarity there agrees with the Uncommon that
-// gamedata.json records for this stats ID.
-// Reaper's Embrace: heavy, class 19, per its stat block on bg3.wiki.
+// Luminous Armour: medium, class 15, Dexterity capped at +2, per
+// https://bg3.wiki/wiki/Luminous_Armour. The rarity there agrees with the
+// Uncommon that gamedata.json records for this stats ID.
+// Reaper's Embrace: heavy, class 19, per https://bg3.wiki/wiki/Reaper%27s_Embrace.
 export const NAMED_ARMOUR=new Map([
  // https://bg3.wiki/wiki/Sharpened_Snare_Cuirass
  // Exotic Material allows the full Dexterity modifier despite medium armour.
@@ -95,16 +95,34 @@ export const NAMED_ARMOUR=new Map([
 // it must withhold. Of the 169 body-slot entries in gamedata.json, 48 of the
 // 75 that carry no family word are clothing, and none of the 94 that do also
 // match this, so the two tests cannot disagree about an item.
+// A plain ARM_ entry is base equipment; anything else with no +N in its name
+// may hold an enhancement the sheet cannot read.
+// Magic items whose family figure was confirmed against the game's own AC on
+// a real save: each scored exactly what the character screen showed, so none
+// holds an enhancement beyond what the sheet already counts.
+const PLAIN_ENHANCEMENT=new Set([
+ 'GOB_Priest_Shield',              // Absolute's Warboard
+ 'MAG_Safeguard_Shield',           // Safeguard Shield
+ 'GOB_DrowCommander_Leather_Armor',// Spidersilk Armour
+ 'UNI_Leather_Halsin',             // Druid Leather Armour
+ 'UNI_Leather_Jaheira',            // Leather Armour
+]);
+export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!PLAIN_ENHANCEMENT.has(i.stats)&&!/\+\d/.test(i.name||'');
 export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
-// Progress through the current level, or null when the totals disagree with
-// the table (a modded XP curve, or a future patch retuning it). A wrong
+// Progress through the current level, or null when the total sits below the
+// level's floor (a modded XP curve, or a future patch retuning it). A wrong
 // "XP to next level" is worse than none, so callers show nothing instead.
+// A total at or past the next threshold is not a disagreement: the game lets
+// a character bank the experience and take the level later, so it reports
+// the level up as ready, with `reachable` the highest level the total buys.
 export function xpProgress(xp,level){
  if(!integer(xp,0,10000000)||!integer(level,1,12))return null;
  const floor=XP_LEVELS[level],ceiling=level<12?XP_LEVELS[level+1]:null;
- if(xp<floor||(ceiling!==null&&xp>=ceiling))return null;
- return {within:xp-floor,band:ceiling===null?null:ceiling-floor,remaining:ceiling===null?null:ceiling-xp};
+ if(xp<floor)return null;
+ const levelUp=ceiling!==null&&xp>=ceiling;
+ const reachable=levelUp?XP_LEVELS.findLastIndex(n=>n!==null&&n<=xp):level;
+ return {within:xp-floor,band:ceiling===null?null:ceiling-floor,remaining:ceiling===null?null:Math.max(0,ceiling-xp),levelUp,reachable};
 }
 export function characterClasses(c){
  const total=Number(c.level);
@@ -141,7 +159,9 @@ export function adaptCharacter(report,index,template){
  // progress within the current level instead. Keep the save's number and let
  // the sheet derive the in-level figures from it.
  out.xp=integer(c.xp,0,10000000)?c.xp:'';
- if(out.xp!==''&&!xpProgress(out.xp,out.classes.reduce((n,x)=>n+x.level,0)))warnings.push('Experience total '+out.xp+' does not match the expected range for this level, so progress to the next level is not shown.');
+ const xpLevel=out.classes.reduce((n,x)=>n+x.level,0),xpState=out.xp===''?undefined:xpProgress(out.xp,xpLevel);
+ if(xpState===null)warnings.push('Experience total '+out.xp+' is below the expected range for this level, so progress to the next level is not shown.');
+ else if(xpState?.levelUp)warnings.push('Level up available: '+out.xp+' experience reaches level '+xpState.reachable+', but it has not been taken in game yet, so this sheet shows level '+xpLevel+'.');
  out.hp=integer(c.hp?.current)?c.hp.current:'';out.maxHp=integer(c.hp?.max)?c.hp.max:'';out.tempHp=integer(c.hp?.temp)?c.hp.temp:'';
  if(!c.hp)warnings.push('Hit points were not recovered.');
  const resources=c.resources||[];
@@ -195,9 +215,12 @@ export function adaptCharacter(report,index,template){
      const con=abilityMod('con'), wis=abilityMod('wis');
      const defences=[];
      // Mage Armour replaces the base calculation; it never stacks with
-     // Unarmoured Defence. A shield does not suppress Mage Armour.
+     // Unarmoured Defence or Draconic Resilience. A shield does not suppress Mage Armour.
      if(unarmoured&&(c.statuses||[]).some(s=>s.id==='MAGE_ARMOR'))defences.push(3);
      if(unarmoured&&classNames.has('Barbarian')&&con!==null)defences.push(con);
+     // Draconic Resilience: 13 + Dexterity while unarmoured; a shield keeps it.
+     // https://bg3.wiki/wiki/Draconic_Bloodline
+     if(unarmoured&&out.classes.some(x=>x.name==='Sorcerer'&&x.subclass==='Draconic Bloodline'))defences.push(3);
      if(unarmoured&&classNames.has('Monk')&&!shieldItem&&wis!==null)defences.push(wis);
      const unarmouredDefence=defences.length?Math.max(...defences):0;
      const base=match?match.base:10, dexCap=match?match.dexCap:Infinity;
@@ -210,6 +233,11 @@ export function adaptCharacter(report,index,template){
      const bracers=wornItems.some(i=>i.slot==='Gloves'&&i.stats==='UNI_ARM_OfDefense_Gloves');
      const bracersBonus=bracers&&unarmoured&&!shieldItem?2:0;
      out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+bracersBonus+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
+     // Magic armour or a magic shield recognised only by its family word may
+     // carry an enhancement in the item rather than its name, as Armour of
+     // Persistence does: the figure stands, but it may be low.
+     const hidden=[match&&!match.named&&!match.clothing?armourItem:null,shieldItem].filter(i=>i&&enhancementHidden(i));
+     if(hidden.length)warnings.push('Armour class may be understated: any enhancement on '+hidden.map(itemLabel).join(', ')+' is held in the item rather than its name.');
      // Recognised item definitions are normal calculation inputs. Their
      // sources live with NAMED_ARMOUR, rather than appearing as import errors.
    }
@@ -261,6 +289,7 @@ export function adaptCharacter(report,index,template){
  const monkWeaponTypes=new Set(['Rapier','Shortsword','Scimitar','Dagger','Longsword','Battleaxe','Handaxe','Warhammer','Light Hammer','Mace','Quarterstaff','Spear','Javelin','Club','Trident','War Pick','Sickle','Flail','Morningstar']);
  const prof=integer(c.proficiency_bonus,0,10)?c.proficiency_bonus:2+Math.floor((out.classes.reduce((n,x)=>n+x.level,0)-1)/4);
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
+ // https://bg3.wiki/wiki/Marksmanship_Hat: +1 to ranged weapon and spell attack rolls.
  const marksmanship=wornItems.some(i=>i.slot==='Helmet'&&i.stats==='MAG_ofMarksmanship_Hat')?1:0;
  out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0)+marksmanship;
  out.spellDcBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellDcBonus,0);
@@ -362,6 +391,7 @@ export function adaptCharacter(report,index,template){
  out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');
+ if(c.skills_note)warnings.push('Skills: '+c.skills_note+'.');
  if(c.equipment_note)warnings.push('Equipment: '+c.equipment_note+'.');
  // The first standard feat is earned at class level 4, not total level 4.
  // A Bard 3 / Wizard 2 therefore has no feat choice to recover yet.

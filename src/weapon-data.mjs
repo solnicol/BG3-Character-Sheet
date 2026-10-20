@@ -5,6 +5,8 @@ const weapons = [
  ['Rapier','1d8','piercing','finesse','Martial'],['Shortsword','1d6','piercing','finesse','Martial'],['Scimitar','1d6','slashing','finesse','Martial'],['Dagger','1d4','piercing','finesse','Simple'],
  ['Greatsword','2d6','slashing','str','Martial'],['Longsword','1d8','slashing','str','Martial'],['Greataxe','1d12','slashing','str','Martial'],['Battleaxe','1d8','slashing','str','Martial'],['Handaxe','1d6','slashing','str','Simple'],
  ['Warhammer','1d8','bludgeoning','str','Martial'],['Light Hammer','1d4','bludgeoning','str','Simple'],['Maul','2d6','bludgeoning','str','Martial'],['Mace','1d6','bludgeoning','str','Simple'],['Quarterstaff','1d6','bludgeoning','str','Simple'],['Spear','1d6','piercing','str','Simple'],['Javelin','1d6','piercing','str','Simple'],['Club','1d4','bludgeoning','str','Simple'],
+ // https://bg3.wiki/wiki/Greatclubs: two-handed simple, so no versatile upgrade.
+ ['Greatclub','1d8','bludgeoning','str','Simple'],
  // Polearms and the rest, each checked against its published stat block.
  // gamedata.json agrees on the grip: all 11 glaives and all 12 halberds it
  // lists are flagged two-handed, and none of the tridents, war picks or
@@ -68,6 +70,8 @@ export const NAMED_WEAPONS=new Map([
  // Each rider they carry is conditional — on low health, on advantage, on a
  // burning target — so none of it reaches a resting attack or damage figure.
  ['MAG_LowHP_IncreaseDamage_Greataxe',{name:'Blooded Greataxe',enhancement:1}],
+ // https://bg3.wiki/wiki/Darkfire_Shortbow and
+ // https://bg3.wiki/wiki/Hellfire_Hand_Crossbow are both +2.
  ['MAG_BG_Darkfire_Shortbow',{name:'Darkfire Shortbow',enhancement:2}],
  ['MAG_Blindside_Shortsword',{name:'Render of Mind and Body',enhancement:1}],
  ['MAG_Slicing_Shortsword',{name:'Slicing Shortsword',enhancement:1}],
@@ -93,7 +97,9 @@ export const NAMED_WEAPONS=new Map([
  // spellcasting modifier rather than the Dexterity or Strength their family
  // would use, which is the difference between a scimitar swung by a druid's
  // Wisdom and one swung by her arm.
- ['ORI_Wyll_Infernal_Rapier',{name:'Infernal Rapier',enhancement:2,ability:'spell'}],
+ // https://bg3.wiki/wiki/Infernal_Rapier also raises Spell Save DC by 1.
+ // https://bg3.wiki/wiki/Sylvan_Scimitar
+ ['ORI_Wyll_Infernal_Rapier',{name:'Infernal Rapier',enhancement:2,ability:'spell',spellDcBonus:1}],
  ['MAG_HAV_Sylvan_Scimitar',{name:'Sylvan Scimitar',enhancement:1,ability:'spell'}],
 ]);
 // An equipped weapon that is not a plain WPN_ entry, carries no +N in its name

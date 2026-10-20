@@ -18,3 +18,12 @@ test('Melf staff applies weapon and spell bonuses only while equipped',()=>{
  r=sheet({equipped:[item,{name:'Shield',stats:'ARM_Shield',slot:'Melee Offhand Weapon'}]});assert.match(r.sheet.attacks,/1d6 bludgeoning/);
  r=sheet({equipped:[],carried:[item]});assert.equal(r.sheet.spellAttackBonus,0);assert.equal(r.sheet.spellDcBonus,0);assert.equal(r.sheet.attacks,'');
 });
+test('Greatclub is a two-handed simple 1d8 bludgeoning weapon',()=>{
+ const r=sheet({equipped:[{name:'Greatclub',stats:'WPN_Greatclub',slot:'Melee Main Weapon'}]});
+ assert.match(r.sheet.attacks,/Greatclub: \+2 to hit, 1d8 -1 bludgeoning/);
+ assert.ok(!r.warnings.some(w=>w.includes('No attack line')));
+});
+test('Infernal Rapier raises spell save DC by one',()=>{
+ const r=sheet({equipped:[{name:'Infernal Rapier',stats:'ORI_Wyll_Infernal_Rapier',slot:'Melee Main Weapon'}]});
+ assert.equal(r.sheet.spellDcBonus,1);assert.equal(r.sheet.spellAttackBonus,0);
+});
