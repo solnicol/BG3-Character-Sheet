@@ -34,3 +34,9 @@ test('an unknown background keeps chosen skills and warns',()=>{
  const r=sheet({class_levels:[{name:'Rogue',level:5}],skill_proficiencies:c.skill_proficiencies,skills_note:c.skills_note});
  assert.equal(r.sheet.skills.Acrobatics,1);assert.ok(r.warnings.some(w=>/^Skills: background not recognised/.test(w)));
 });
+test('items confirmed against in-game AC raise no understated warning',()=>{
+ for(const [stats,slot,name] of [['GOB_Priest_Shield','Melee Offhand Weapon',"Absolute's Warboard"],['MAG_Safeguard_Shield','Melee Offhand Weapon','Safeguard Shield'],['GOB_DrowCommander_Leather_Armor','Breast','Spidersilk Armour'],['UNI_Leather_Halsin','Breast','Druid Leather Armour'],['UNI_Leather_Jaheira','Breast','Leather Armour']])
+  assert.ok(!sheet({class_levels:[{name:'Fighter',level:5}],equipped:[{name,stats,slot}]}).warnings.some(w=>/understated/.test(w)),name);
+ // Bob: Spidersilk Armour with Dexterity 16 reads 15 in game.
+ assert.equal(sheet({level:6,class_levels:[{name:'Warlock',level:6}],abilities:{str:8,dex:16,con:14,int:8,wis:10,cha:19},equipped:[{name:'Spidersilk Armour',stats:'GOB_DrowCommander_Leather_Armor',slot:'Breast'}]}).sheet.ac,15);
+});

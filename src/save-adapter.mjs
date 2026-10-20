@@ -97,7 +97,17 @@ export const NAMED_ARMOUR=new Map([
 // match this, so the two tests cannot disagree about an item.
 // A plain ARM_ entry is base equipment; anything else with no +N in its name
 // may hold an enhancement the sheet cannot read.
-export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!/\+\d/.test(i.name||'');
+// Magic items whose family figure was confirmed against the game's own AC on
+// a real save: each scored exactly what the character screen showed, so none
+// holds an enhancement beyond what the sheet already counts.
+const PLAIN_ENHANCEMENT=new Set([
+ 'GOB_Priest_Shield',              // Absolute's Warboard
+ 'MAG_Safeguard_Shield',           // Safeguard Shield
+ 'GOB_DrowCommander_Leather_Armor',// Spidersilk Armour
+ 'UNI_Leather_Halsin',             // Druid Leather Armour
+ 'UNI_Leather_Jaheira',            // Leather Armour
+]);
+export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!PLAIN_ENHANCEMENT.has(i.stats)&&!/\+\d/.test(i.name||'');
 export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
 // Progress through the current level, or null when the totals disagree with
