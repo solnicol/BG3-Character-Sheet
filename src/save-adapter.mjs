@@ -76,10 +76,10 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // stable across saves and localisations where a display name is not, and its
 // class is the item's finished number, enchantment included.
 //
-// Luminous Armour: medium, class 15, Dexterity capped at +2, per its stat
-// block on bg3.wiki. The rarity there agrees with the Uncommon that
-// gamedata.json records for this stats ID.
-// Reaper's Embrace: heavy, class 19, per its stat block on bg3.wiki.
+// Luminous Armour: medium, class 15, Dexterity capped at +2, per
+// https://bg3.wiki/wiki/Luminous_Armour. The rarity there agrees with the
+// Uncommon that gamedata.json records for this stats ID.
+// Reaper's Embrace: heavy, class 19, per https://bg3.wiki/wiki/Reaper%27s_Embrace.
 export const NAMED_ARMOUR=new Map([
  // https://bg3.wiki/wiki/Sharpened_Snare_Cuirass
  // Exotic Material allows the full Dexterity modifier despite medium armour.
@@ -261,6 +261,7 @@ export function adaptCharacter(report,index,template){
  const monkWeaponTypes=new Set(['Rapier','Shortsword','Scimitar','Dagger','Longsword','Battleaxe','Handaxe','Warhammer','Light Hammer','Mace','Quarterstaff','Spear','Javelin','Club','Trident','War Pick','Sickle','Flail','Morningstar']);
  const prof=integer(c.proficiency_bonus,0,10)?c.proficiency_bonus:2+Math.floor((out.classes.reduce((n,x)=>n+x.level,0)-1)/4);
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
+ // https://bg3.wiki/wiki/Marksmanship_Hat: +1 to ranged weapon and spell attack rolls.
  const marksmanship=wornItems.some(i=>i.slot==='Helmet'&&i.stats==='MAG_ofMarksmanship_Hat')?1:0;
  out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0)+marksmanship;
  out.spellDcBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellDcBonus,0);

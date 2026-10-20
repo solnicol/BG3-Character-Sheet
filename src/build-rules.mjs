@@ -43,6 +43,9 @@ export function applySavedBuild(char,record,classNames){
  if(char.race==='Githyanki')['Light Armour','Medium Armour','Shortswords','Longswords','Greatswords'].forEach(p=>equipment.add(p));
  if(/^Dwarf_/.test(char.race||''))['Battleaxes','Handaxes','Light Hammers','Warhammers'].forEach(p=>equipment.add(p));
  if(char.race==='Dwarf_Shield')['Light Armour','Medium Armour'].forEach(p=>equipment.add(p));
- for(const [,sub] of record.levels){const name=classNames[sub];if(['LifeDomain','NatureDomain','TempestDomain','WarDomain'].includes(name))equipment.add('Heavy Armour');if(['TempestDomain','WarDomain'].includes(name))equipment.add('Martial Weapons');}
+ for(const [,sub] of record.levels){const name=classNames[sub];if(['LifeDomain','NatureDomain','TempestDomain','WarDomain'].includes(name))equipment.add('Heavy Armour');if(['TempestDomain','WarDomain'].includes(name))equipment.add('Martial Weapons');
+   // https://bg3.wiki/wiki/College_of_Valour and https://bg3.wiki/wiki/College_of_Swords
+   if(name==='ValorCollege')['Medium Armour','Shields','Martial Weapons'].forEach(p=>equipment.add(p));
+   if(name==='SwordsCollege')['Medium Armour','Scimitars'].forEach(p=>equipment.add(p));}
  char.equipment_proficiencies=[...equipment];
 }
