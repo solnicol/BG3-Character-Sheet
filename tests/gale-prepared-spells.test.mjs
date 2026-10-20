@@ -40,3 +40,18 @@ test('Gale retains prepared level-four subclass spells outside the main book',{s
  assert.equal(sheet.slots[3],'1 / 1');
  console.log('Level 4:',names.join(', '));
 });
+
+test('newly scribed Wall of Fire is retained without inventing preparation',{skip:!process.env.SCRIBED_SAVE},()=>{
+ let report;const self={postMessage(m){if(m.kind==='error')throw Error(m.message);if(m.kind==='report')report=m.report;}};
+ const ctx=vm.createContext({self,TextDecoder,TextEncoder,Uint8Array,ArrayBuffer,DataView,console});
+ vm.runInContext(readFileSync(new URL('../assets/bg3-worker.js',import.meta.url),'utf8'),ctx);
+ const b=readFileSync(process.env.SCRIBED_SAVE);self.onmessage({data:{buffer:b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),name:'scribed.lsv'}});
+ const i=report.characters.findIndex(c=>c.name==='Gale');assert.ok(i>=0);const c=report.characters[i];
+ for(const [id,prepared] of [['Wall_WallOfFire',false],['Target_Confusion',true]]){
+  const spell=c.spells.find(s=>s.id===id);assert.ok(spell,id);assert.equal(spell.level,4);assert.equal(spell.prepared,prepared);
+ }
+ const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');const blank=Function('return ('+html.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
+ const sheet=adaptCharacter(report,i,blank()).sheet;
+ assert.match(sheet.spells,/Level 4: Wall of Fire \[not prepared\]/);assert.match(sheet.spells,/Level 4: Confusion \[prepared\]/);
+ assert.equal(sheet.hp,59);assert.equal(sheet.maxHp,59);assert.equal(sheet.tempHp,0);
+});
