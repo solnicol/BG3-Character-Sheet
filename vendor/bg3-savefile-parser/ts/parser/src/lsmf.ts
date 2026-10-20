@@ -307,27 +307,6 @@ export function parseLsmfAllContainerPositions(blob: Uint8Array): Map<number, nu
  *  delta between each prepares row and the unique spell book containing its
  *  spell names. Mirrors bg3parser/lsmf.py parse_lsmf_prepared_spells.
  */
-/** The camp-supply total shown next to the Long Rest button, or null.
- *
- *  game.camp.v0.TotalSuppliesComponent holds one u32 — but it is a cache the
- *  engine zeroes and only recomputes when the camp/rest system runs, so 0
- *  means "not cached", not "no supplies"; callers should treat 0 as absent.
- */
-export const HIT_DIE: Record<string, [number, number]> = {
-  Barbarian: [12, 7],
-  Fighter: [10, 6],
-  Paladin: [10, 6],
-  Ranger: [10, 6],
-  Bard: [8, 5],
-  Cleric: [8, 5],
-  Druid: [8, 5],
-  Monk: [8, 5],
-  Rogue: [8, 5],
-  Warlock: [8, 5],
-  Sorcerer: [6, 4],
-  Wizard: [6, 4],
-};
-
 /** Map owner index k -> data record index j for stream-serialized components.
  *
  *  Some LSMF components serialize their rows as one packed stream (with a
@@ -420,73 +399,31 @@ export function parseLsmfAbilityScores(blob: Uint8Array): Map<number, number[]> 
   return out;
 }
 
-/** Hit points: entity row -> [current, max, temp, temp_max].
- *  Mirrors bg3parser/lsmf.py parse_lsmf_health (16-byte stream header,
- *  32-byte records, phantom shift validated by the class/CON HP formula). */
-export function parseLsmfHealth(
-  blob: Uint8Array,
-  abilities: Map<number, number[]>,
-  classNames: Record<string, string>,
-): Map<number, number[]> {
+/** Read health from the saved component row and its explicit entity owner.
+ * Component and owner-list pointers are heap-relative; neither row position nor
+ * a predicted class HP total identifies an entity.
+ */
+export function parseLsmfHealth(blob: Uint8Array): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  const scan = scanLsmfBlob(blob);
+  if (!scan) return out;
   const idx = lsmfComponentIndex(blob);
-  const hl = idx.get('game.stats.v0.HealthComponent');
-  if (hl?.elemSize !== 32) return new Map();
+  const health = heapComponent(idx, 'game.stats.v0.HealthComponent');
+  const entities = heapComponent(idx, 'core.v0.EntityId');
+  if (!health || health.elemSize !== 32 || !entities || entities.elemSize !== 16) return out;
+  const owners = scan.records.find(([i]) => scan.compDescs[i]?.name === health.name);
+  if (!owners || owners[2] !== health.rowCount) return out;
   const { dv } = align(blob);
-  const L = blob.length;
-
-  const expected = new Map<number, number>();
-  for (const [ent, cls] of parseLsmfClasses(blob)) {
-    const ab = abilities.get(ent);
-    if (!ab) continue;
-    const conmod = Math.floor((ab[2]! - 10) / 2);
-    let total = 0;
-    let lvls = 0;
-    for (const [cguid, , lvl] of cls as [string, string, number][]) {
-      const die = HIT_DIE[classNames[cguid] ?? ''];
-      if (!die) {
-        total = 0;
-        break;
-      }
-      total += (lvls === 0 ? die[0] : die[1]) + (lvl - (lvls === 0 ? 1 : 0)) * die[1];
-      lvls += lvl;
-    }
-    if (total && lvls) expected.set(ent, total + conmod * lvls);
-  }
-
-  const rec = (j: number): number[] | null => {
-    const p = hl.dataOffset + 16 + j * hl.elemSize;
-    if (j < 0 || p + 16 > L) return null;
-    return Array.from({ length: 4 }, (_, i) => dv.getInt32(p + i * 4, true));
-  };
-
-  const plausible = (j: number): boolean => {
-    const v = rec(j);
-    if (v === null) return false;
-    const [cur, mx, temp, tempMax] = v as [number, number, number, number];
-    return (
-      mx > 0 &&
-      mx <= 4000 &&
-      cur >= 0 &&
-      cur <= mx &&
-      temp >= 0 &&
-      temp <= 200 &&
-      tempMax >= 0 &&
-      tempMax <= 200
-    );
-  };
-
-  const validAt = (k: number, j: number): boolean => {
-    if (!plausible(j)) return false;
-    const exp = expected.get(hl.ownerRows[k]!);
-    return exp !== undefined && rec(j)![1] === exp;
-  };
-
-  const mapping = solveOwnerShifts(hl.rowCount, validAt);
-  const out = new Map<number, number[]>();
-  for (let k = 0; k < hl.rowCount; k++) {
-    const ent = hl.ownerRows[k]!;
-    const j = mapping.get(k)!;
-    if (plausible(j) && !out.has(ent)) out.set(ent, rec(j)!);
+  for (let i = 0; i < health.rowCount; i++) {
+    const owner = owners[1] + LSMF_HEAP_BASE + i * 4;
+    const p = health.dataOffset + i * health.elemSize;
+    if (owner < 0 || owner + 4 > blob.length || p + 16 > blob.length) break;
+    const row = dv.getUint32(owner, true);
+    const entity = entities.dataOffset + row * 16;
+    if (row >= entities.rowCount || entity + 16 > blob.length) continue;
+    const values = Array.from({ length: 4 }, (_, k) => dv.getInt32(p + k * 4, true));
+    if (values.some(v => v < 0)) continue;
+    out.set(guidLeStr(blob, entity), values);
   }
   return out;
 }
