@@ -460,8 +460,8 @@ test('the unpopulated armour_class field is never the sole basis for a total',()
 // Experience. The table is verified against a live save: Neith is level 4 on
 // 3542 cumulative XP and the game reports 842 earned with 2958 remaining.
 test('experience progress matches the values the game itself reports',()=>{
- assert.deepEqual(xpProgress(3542,4),{within:842,band:3800,remaining:2958});
- assert.deepEqual(xpProgress(3502,4),{within:802,band:3800,remaining:2998});
+ assert.deepEqual(xpProgress(3542,4),{within:842,band:3800,remaining:2958,levelUp:false,reachable:4});
+ assert.deepEqual(xpProgress(3502,4),{within:802,band:3800,remaining:2998,levelUp:false,reachable:4});
 });
 test('the experience table is cumulative, ascending and ends at the level 12 total',()=>{
  assert.equal(XP_LEVELS[1],0);assert.equal(XP_LEVELS[4],2700);assert.equal(XP_LEVELS[5],6500);
@@ -474,28 +474,40 @@ test('the sheet keeps an identical copy of the experience table',()=>{
 });
 test('progress is withheld when experience and level disagree',()=>{
  assert.equal(xpProgress(2699,4),null);  // below the level 4 floor
- assert.equal(xpProgress(6500,4),null);  // already past the level 5 threshold
  assert.equal(xpProgress(-1,4),null);
  assert.equal(xpProgress(3542,13),null);
  assert.equal(xpProgress(3542.5,4),null);
 });
 test('level 12 has a band but no remaining experience',()=>{
- assert.deepEqual(xpProgress(100000,12),{within:0,band:null,remaining:null});
+ assert.deepEqual(xpProgress(100000,12),{within:0,band:null,remaining:null,levelUp:false,reachable:12});
+});
+test('experience past the next threshold is a level up not yet taken',()=>{
+ // Savros: level 6 Cleric holding 21061, with level 7 at 21000.
+ assert.deepEqual(xpProgress(21061,6),{within:8061,band:8000,remaining:0,levelUp:true,reachable:7});
+ assert.equal(xpProgress(6500,4).levelUp,true);
+ assert.equal(xpProgress(30000,6).reachable,8);
 });
 test('experience is imported and an inconsistent total is flagged',()=>{
  const r=structuredClone(report),c=r.characters[0];
  c.xp=3542;c.level=4;c.class_levels=[{name:'Fighter',subclass:'',level:4}];
  const s=adaptCharacter(r,0,blank()).sheet;
  assert.equal(s.xp,3542);
- assert.doesNotMatch(s.importSummary,/does not match the expected range/);
- c.xp=99999;
- assert.match(adaptCharacter(r,0,blank()).sheet.importSummary,/does not match the expected range/);
+ assert.doesNotMatch(s.importSummary,/below the expected range|Level up available/);
+ c.xp=2000;
+ assert.match(adaptCharacter(r,0,blank()).sheet.importSummary,/below the expected range/);
+});
+test('banked experience is reported as a level up, not a mismatch',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.xp=21061;c.level=6;c.class_levels=[{name:'Cleric',subclass:'LightDomain',level:6}];
+ const summary=adaptCharacter(r,0,blank()).sheet.importSummary;
+ assert.match(summary,/Level up available: 21061 experience reaches level 7, but it has not been taken in game yet, so this sheet shows level 6\./);
+ assert.doesNotMatch(summary,/below the expected range/);
 });
 test('a missing experience total stays blank without a warning',()=>{
  const r=structuredClone(report),c=r.characters[0];delete c.xp;
  const s=adaptCharacter(r,0,blank()).sheet;
  assert.equal(s.xp,'');
- assert.doesNotMatch(s.importSummary,/does not match the expected range/);
+ assert.doesNotMatch(s.importSummary,/below the expected range|Level up available/);
 });
 
 test('padded armour is light armour keeping the full Dexterity modifier',()=>{
