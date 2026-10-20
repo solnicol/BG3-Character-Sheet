@@ -24,6 +24,7 @@ import {
   parseLsmfContainerPositions,
   parseLsmfFeats,
   parseLsmfHealth,
+  parseLsmfOwnedSpells,
   parseLsmfInspiration,
   parseLsmfInterruptPreferences,
   parseLsmfInventoryOwners,
@@ -637,9 +638,10 @@ export function gatherReport(
   // cantrips from leveled spells. Any prepared source can be outside the main
   // book, including class/subclass spells newly chosen at level-up. Preserve
   // all valid saved prepared entries, not just item/Wizard/Illithid sources.
+  const ownedSpells = lsmfBlob ? parseLsmfOwnedSpells(lsmfBlob) : new Map();
   const stripUpcast = (sid: string): string => sid.replace(/_\d+$/, '');
-  const spellRefs = (ent: number): SpellRef[] => {
-    const prepared = preparedSpells.get(ent);
+  const spellRefs = (ent: number, owned?: import('./lsmf.js').OwnedSpells): SpellRef[] => {
+    const prepared = owned ? owned.prepared : preparedSpells.get(ent);
     // base prototype name -> lowest source type (class 0 beats item 3 etc.)
     let preparedSource: Map<string, number> | null = null;
     if (prepared) {
@@ -651,7 +653,7 @@ export function gatherReport(
         if (prev === undefined || st < prev) preparedSource.set(base, st);
       }
     }
-    const bookIds = new Set(spellbooks.get(ent)!);
+    const bookIds = new Set(owned ? owned.known : spellbooks.get(ent)!);
     const ids = new Set(bookIds);
     if (prepared)
       for (const [name, st] of prepared)
@@ -738,6 +740,8 @@ export function gatherReport(
     const anchorEntities = charPos === undefined ? [] : [...instanceEntityLists].filter(([key])=>key.startsWith(`${charPos}|`)).flatMap(([,ids])=>ids);
     const inventory = resolveInventory(anchorEntities,liveInventories,new Set(entityToTemplate0.keys()));
     if(inventory){
+      const spells = ownedSpells.get(inventory.owner);
+      if (spells) { char.spells = spellRefs(-1, spells); char.spells_note = null; }
       const h = health.get(inventory.owner);
       if (h) char.hp = { current: h[0]!, max: h[1]!, temp: h[2]!, temp_max: h[3]! };
       char.passive_toggles=passiveToggles.get(inventory.owner);

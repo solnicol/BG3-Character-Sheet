@@ -1488,3 +1488,71 @@ export function parseLsmfPassiveToggles(blob:Uint8Array):Map<string,Record<strin
   }
   return result;
 }
+
+export interface OwnedSpells {
+  known: string[];
+  prepared?: [string, number, string][];
+}
+/** Spell records joined through explicit ECS owners, never spell-list similarity. */
+export function parseLsmfOwnedSpells(blob: Uint8Array): Map<string, OwnedSpells> {
+  const out = new Map<string, OwnedSpells>(), scan = scanLsmfBlob(blob);
+  if (!scan) return out;
+  const idx = lsmfComponentIndex(blob), eid = heapComponent(idx, 'core.v0.EntityId');
+  if (!eid || eid.elemSize !== 16) return out;
+  const {dv} = align(blob), L = blob.length, dec = new TextDecoder();
+  const range = (p: number, stride: number): number[] => {
+    if (p < 48 || p + 16 > L) return [];
+    const lo = u64(dv, p) + 48, hi = u64(dv, p + 8) + 48;
+    if (!Number.isSafeInteger(lo) || !Number.isSafeInteger(hi) || lo < 48 || hi < lo || hi > L || (hi-lo)%stride) return [];
+    return Array.from({length:(hi-lo)/stride}, (_,i)=>lo+i*stride);
+  };
+  const str = (p: number): string | null => {
+    if (p < 48 || p + 16 > L) return null;
+    const start = u64(dv,p)+48, len = dv.getUint32(p+8,true);
+    if (!Number.isSafeInteger(start) || start<48 || !len || len>128 || start+len>L) return null;
+    const name=dec.decode(blob.subarray(start,start+len));
+    return /^[A-Za-z][A-Za-z0-9_]*$/.test(name)?name:null;
+  };
+  const read = (name:string, size:number, visit:(p:number,s:OwnedSpells)=>void) => {
+    const c=heapComponent(idx,name), owners=scan.records.find(([i])=>scan.compDescs[i]?.name===name);
+    if(!c||c.elemSize!==size||!owners||owners[2]!==c.rowCount)return;
+    for(let i=0;i<c.rowCount;i++){
+      const op=owners[1]+48+i*4,p=c.dataOffset+i*size;
+      if(op<48||op+4>L||p<48||p+size>L)continue;
+      const row=dv.getUint32(op,true),ep=eid.dataOffset+row*16;
+      if(row>=eid.rowCount||ep+16>L)continue;
+      const id=guidLeStr(blob,ep),value=out.get(id)??{known:[]};
+      visit(p,value);out.set(id,value);
+    }
+  };
+  const sd=heapComponent(idx,'game.spell.v3.SpellData'),si=heapComponent(idx,'game.spell.v0.SpellId');
+  if(sd?.elemSize===72&&si?.elemSize===24)read('game.spell.v3.SpellBookComponent',16,(p,s)=>{
+    for(const data of range(p,72)){
+      if(data<sd.dataOffset||data+72>sd.dataOffset+sd.rowCount*72)continue;
+      const id=u64(dv,data)+48;
+      if(id<si.dataOffset||id+24>si.dataOffset+si.rowCount*24)continue;
+      const name=str(id+8);if(name)s.known.push(name);
+    }
+  });
+  read('game.spell.v0.LearnedSpells',32,(p,s)=>{
+    // Class GUID followed by a vector of 16-byte spell-name strings.
+    for(const cls of range(p,32))for(const entry of range(cls+16,16)){
+      const name=str(entry);if(name)s.known.push(name);
+    }
+  });
+  read('game.spell.v0.SpellBookPrepares',80,(p,s)=>{
+    s.prepared=[];
+    for(const entry of range(p,24)){
+      const name=str(entry);if(!name)continue;
+      const detail=u64(dv,entry+16)+48;
+      let source=-1,guid='';
+      if(detail>=48&&detail+24<=L){
+        const ptr=u64(dv,detail)+48;
+        if(ptr>=48&&ptr+8<=L){const value=u64(dv,ptr);if(value<1024){source=value;guid=guidLeStr(blob,detail+8);}}
+      }
+      s.prepared.push([name,source,guid]);s.known.push(name);
+    }
+  });
+  for(const s of out.values())s.known=[...new Set(s.known)];
+  return out;
+}
