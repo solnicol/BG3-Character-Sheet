@@ -1,6 +1,6 @@
 # Mechanics and save coverage
 
-Skill choices and expertise are decoded from each saved level-up selector. Background UUIDs come from the parallel creation table, with matching row counts required. Histories are attributed only when the class/subclass build is unique. Starting-class saving throws come from the recovered first level, not from the order of the current multiclass display.
+Skill choices and expertise are decoded from each saved level-up selector. Background UUIDs come from the parallel creation table, with matching row counts required. An unrecognised background keeps the chosen skills and warns that its own two are missing. The Haunted One UUID is community-sourced and not yet checked against a Dark Urge save. Histories are attributed only when the class/subclass build is unique. Starting-class saving throws come from the recovered first level, not from the order of the current multiclass display.
 
 Skill enum mapping: [BG3 Script Extender definitions](https://github.com/Norbyte/bg3se/blob/main/BG3Extender/GameDefinitions/Enumerations/Stats.inl).
 
@@ -18,9 +18,13 @@ Combat contributions implemented:
   forward-compatible fallback and is never the sole basis for a total.
 - Armour whose type is not recognised leaves armour class blank with an explicit import
   warning. Scoring it as unarmoured would silently under-report by up to seven points,
-  so no number is shown rather than a wrong one. Named magic armour such as Luminous
-  Armour, Enraging Heart Garb and The Graceful Cloth needs armour-class game data that
-  is not yet vendored.
+  so no number is shown rather than a wrong one. Body-slot clothing such as The Graceful
+  Cloth and Enraging Heart Garb scores as unarmoured.
+- Magic armour or shields recognised only by family word (Armour of Persistence is
+  plate) score at the family's base class and carry an import warning, since any
+  enhancement held in the item rather than its name cannot be read.
+- Unarmoured defences: Barbarian and Monk Unarmoured Defence, Draconic Resilience
+  (13 + Dexterity) and Mage Armour; the highest applies, never their sum.
 - Duelling and two-weapon fighting: supported base damage adjustments; special weapons and situational effects still need broader game-data coverage.
 
 Conditions: active statuses are read from each character's own `StatusManager` node, the

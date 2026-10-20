@@ -95,6 +95,9 @@ export const NAMED_ARMOUR=new Map([
 // it must withhold. Of the 169 body-slot entries in gamedata.json, 48 of the
 // 75 that carry no family word are clothing, and none of the 94 that do also
 // match this, so the two tests cannot disagree about an item.
+// A plain ARM_ entry is base equipment; anything else with no +N in its name
+// may hold an enhancement the sheet cannot read.
+export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!/\+\d/.test(i.name||'');
 export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
 // Progress through the current level, or null when the totals disagree with
@@ -195,9 +198,12 @@ export function adaptCharacter(report,index,template){
      const con=abilityMod('con'), wis=abilityMod('wis');
      const defences=[];
      // Mage Armour replaces the base calculation; it never stacks with
-     // Unarmoured Defence. A shield does not suppress Mage Armour.
+     // Unarmoured Defence or Draconic Resilience. A shield does not suppress Mage Armour.
      if(unarmoured&&(c.statuses||[]).some(s=>s.id==='MAGE_ARMOR'))defences.push(3);
      if(unarmoured&&classNames.has('Barbarian')&&con!==null)defences.push(con);
+     // Draconic Resilience: 13 + Dexterity while unarmoured; a shield keeps it.
+     // https://bg3.wiki/wiki/Draconic_Bloodline
+     if(unarmoured&&out.classes.some(x=>x.name==='Sorcerer'&&x.subclass==='Draconic Bloodline'))defences.push(3);
      if(unarmoured&&classNames.has('Monk')&&!shieldItem&&wis!==null)defences.push(wis);
      const unarmouredDefence=defences.length?Math.max(...defences):0;
      const base=match?match.base:10, dexCap=match?match.dexCap:Infinity;
@@ -210,6 +216,11 @@ export function adaptCharacter(report,index,template){
      const bracers=wornItems.some(i=>i.slot==='Gloves'&&i.stats==='UNI_ARM_OfDefense_Gloves');
      const bracersBonus=bracers&&unarmoured&&!shieldItem?2:0;
      out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+bracersBonus+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
+     // Magic armour or a magic shield recognised only by its family word may
+     // carry an enhancement in the item rather than its name, as Armour of
+     // Persistence does: the figure stands, but it may be low.
+     const hidden=[match&&!match.named&&!match.clothing?armourItem:null,shieldItem].filter(i=>i&&enhancementHidden(i));
+     if(hidden.length)warnings.push('Armour class may be understated: any enhancement on '+hidden.map(itemLabel).join(', ')+' is held in the item rather than its name.');
      // Recognised item definitions are normal calculation inputs. Their
      // sources live with NAMED_ARMOUR, rather than appearing as import errors.
    }
@@ -363,6 +374,7 @@ export function adaptCharacter(report,index,template){
  out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');
+ if(c.skills_note)warnings.push('Skills: '+c.skills_note+'.');
  if(c.equipment_note)warnings.push('Equipment: '+c.equipment_note+'.');
  // The first standard feat is earned at class level 4, not total level 4.
  // A Bard 3 / Wizard 2 therefore has no feat choice to recover yet.

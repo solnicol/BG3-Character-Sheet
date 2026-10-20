@@ -11,7 +11,12 @@ const backgrounds={
  'e8c84134-5e91-4ecc-881a-efc47680129b':['Criminal','Deception','Stealth'],
  '229775c9-3044-4779-a3bb-532c39238e03':['Entertainer','Acrobatics','Performance'],
  'e9aeac40-6c4e-4d81-9a24-e9eeb6208e85':['Guild Artisan','Insight','Persuasion'],
- '7e820dee-a8fc-43b2-8661-2b404454bade':['Noble','History','Persuasion']
+ '7e820dee-a8fc-43b2-8661-2b404454bade':['Noble','History','Persuasion'],
+ // The Dark Urge's fixed background (https://bg3.wiki/wiki/Haunted_One). The
+ // UUID is community-sourced (a Nexus Mods thread on Background_HauntedOne),
+ // not yet checked against a Dark Urge save; an unknown background still keeps
+ // the chosen skills below, so a wrong key costs only these two.
+ '20d865ea-03bd-47bf-97d3-777e1b36b073':['Haunted One','Intimidation','Medicine']
 };
 const saves={Barbarian:['str','con'],Bard:['dex','cha'],Cleric:['wis','cha'],Druid:['int','wis'],Fighter:['str','con'],Monk:['str','dex'],Paladin:['wis','cha'],Ranger:['str','dex'],Rogue:['dex','int'],Sorcerer:['con','cha'],Warlock:['wis','cha'],Wizard:['int','wis']};
 const basic=['Simple Weapons'];
@@ -23,8 +28,11 @@ export function applySavedBuild(char,record,classNames){
  if(!saves[first])return;
  char.saving_throw_proficiencies=[...saves[first]];
  const bg=backgrounds[record.background];char.background=bg?.[0]??null;
- if(record.skills!==null&&bg){
-   const skills=new Set([...record.skills,...bg.slice(1)]);
+ // An unrecognised background loses only its own two skills, never the
+ // character's level-up choices.
+ if(record.skills!==null){
+   if(!bg)char.skills_note='background not recognised, so its two skill proficiencies are not included';
+   const skills=new Set([...record.skills,...(bg?.slice(1)||[])]);
    if(/^(Elf_|Drow_)/.test(char.race||''))skills.add('Perception');
    if(['Elf_WoodElf','HalfElf_Wood'].includes(char.race))skills.add('Stealth');
    char.skill_proficiencies=[...skills];char.skill_expertise=record.expertise||[];
