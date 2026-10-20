@@ -518,10 +518,10 @@ export function gatherReport(
   );
   const abilityScores = lsmfBlob ? parseLsmfAbilityScores(lsmfBlob) : new Map<number, number[]>();
   const health = lsmfBlob
-    ? parseLsmfHealth(lsmfBlob, abilityScores, dn.classUuidNames)
-    : new Map<number, number[]>();
+    ? parseLsmfHealth(lsmfBlob)
+    : new Map<string, number[]>();
 
-  /** Attach ability scores and hit points from the entity's ECS rows. */
+  /** Attach stats, resources and concentration from the stats entity. */
   const attachSheet = (char: CharacterReport, ent: number): void => {
     const ab = abilityScores.get(ent);
     if (ab !== undefined) {
@@ -549,10 +549,6 @@ export function gatherReport(
     const spellId = concentration.get(ent);
     if (spellId !== undefined) {
       char.concentration = { id: spellId, name: dn.spellNameFor(spellId) };
-    }
-    const h = health.get(ent);
-    if (h !== undefined) {
-      char.hp = { current: h[0]!, max: h[1]!, temp: h[2]!, temp_max: h[3]! };
     }
   };
   const classNames = dn.classUuidNames;
@@ -742,6 +738,8 @@ export function gatherReport(
     const anchorEntities = charPos === undefined ? [] : [...instanceEntityLists].filter(([key])=>key.startsWith(`${charPos}|`)).flatMap(([,ids])=>ids);
     const inventory = resolveInventory(anchorEntities,liveInventories,new Set(entityToTemplate0.keys()));
     if(inventory){
+      const h = health.get(inventory.owner);
+      if (h) char.hp = { current: h[0]!, max: h[1]!, temp: h[2]!, temp_max: h[3]! };
       char.passive_toggles=passiveToggles.get(inventory.owner);
       const statsByEntity=new Map<string,string>();
       for(const [key,ids] of instanceEntityLists)for(const id of ids)statsByEntity.set(id,key.slice(key.lastIndexOf('|')+1));
