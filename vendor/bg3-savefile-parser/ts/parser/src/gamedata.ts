@@ -58,6 +58,9 @@ export class DisplayNames {
       // Game ActionResourceDefinition: Interrupt_MAG_ParalyzingCritical.
       // https://bg3.norbyte.dev/search?q=78236f5a-94d5-4f8b-bb54-16f5508723e6
       '78236f5a-94d5-4f8b-bb54-16f5508723e6': 'Paralysing Critical (Surgeon’s Subjugation Amulet)',
+      // Game ActionResourceDefinition: Interrupt_AbsorbElements.
+      // https://bg3.norbyte.dev/search?q=6275ca19-95d9-469c-a649-b26f990882fa
+      '6275ca19-95d9-469c-a649-b26f990882fa': 'Absorb Elements',
       ...data?.action_resources,
     };
     this.featNames = data?.feat_names ?? {};
