@@ -177,6 +177,11 @@ export function adaptCharacter(report,index,template){
  // real 'Breast' armour, and a 'Ring' called "Ring of Mind-Shielding" is not
  // a shield.
  const wornItems=c.equipped||[];
+ // Stable saved stats IDs; carried items confer no equipped bonuses.
+ // https://bg3.wiki/wiki/Ambusher
+ const ambusher=wornItems.some(i=>i.stats==='MAG_Ambusher_Shortsword'&&/^Melee (Main|Offhand) Weapon$/.test(i.slot||''));
+ // https://bg3.wiki/wiki/Gauntlets_of_the_Warmaster
+ const warmaster=wornItems.some(i=>i.stats==='MAG_OfWarMaster_Gloves'&&i.slot==='Gloves')?1:0;
  const passives=new Set(c.selected_passives||[]);
  const armourBases=[[/Spidersilk/i,12,Infinity],[/Breastplate/i,14,2],[/Half.?Plate/i,15,2],[/Scale ?Mail/i,14,2],[/Studded/i,12,Infinity],[/Padded/i,11,Infinity],[/Leather/i,11,Infinity],[/Splint/i,17,0],[/Plate/i,18,0],[/Chain ?Mail/i,16,0],[/Chain ?Shirt/i,13,2],[/Ring ?Mail/i,14,0],[/Hide/i,12,2]];
  const armourFamily=i=>{
@@ -242,7 +247,7 @@ export function adaptCharacter(report,index,template){
      // sources live with NAMED_ARMOUR, rather than appearing as import errors.
    }
  } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
- out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2):'');
+ out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2)+(ambusher?1:0):'');
  out.slots=Array(6).fill('');out.pactSlots=Array(6).fill('');
  for(const r of resources){if(r.guid==='d136c5d9-0ff0-43da-acce-a74a07f8d6bf'&&integer(r.level,1,6))out.slots[r.level-1]=amount(r.current)+' / '+amount(r.max)}
  const pact=resources.filter(r=>/warlock.*slot/i.test(r.name||''));
@@ -291,7 +296,7 @@ export function adaptCharacter(report,index,template){
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
  // https://bg3.wiki/wiki/Marksmanship_Hat: +1 to ranged weapon and spell attack rolls.
  const marksmanship=wornItems.some(i=>i.slot==='Helmet'&&i.stats==='MAG_ofMarksmanship_Hat')?1:0;
- out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0)+marksmanship;
+ out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0)+marksmanship+warmaster;
  out.spellDcBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellDcBonus,0);
  const attackLines=attackItems.map(i=>{
    const w=weaponProperties(i),str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
@@ -308,7 +313,7 @@ export function adaptCharacter(report,index,template){
    const allIn=ranged&&proficient&&c.passive_toggles?.Sharpshooter_AllIn===true;
    // Marksmanship does not affect off-hand crossbows or melee weapons.
    const hatBonus=ranged&&!/Offhand/.test(i.slot||'')?marksmanship:0;
-   const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery+hatBonus-(allIn?5:0);
+   const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery+hatBonus+warmaster-(allIn?5:0);
    const offhand=/Offhand/.test(i.slot||'');
    const damageAbility=offhand&&m>0&&!passives.has('FightingStyle_TwoWeaponFighting')?0:m;
    const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer','Trident'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
@@ -335,7 +340,7 @@ export function adaptCharacter(report,index,template){
    const crushing=wornItems.some(i=>i.slot==='Gloves'&&i.stats==='MAG_BG_OfCrushing_Gloves')?2:0;
    const damage=m===null?null:m+crushing;
    const manifestationDamage=manifestations.filter(x=>x.active).map(x=>' + '+x.damage).join('');
-   attackLines.push(`Unarmed strike: ${m===null?'?':signed(m+prof+crushing)} to hit, 1d${martialDie}${damage===null?' + ?':damage?' '+signed(damage):''} bludgeoning${manifestationDamage}`);
+   attackLines.push(`Unarmed strike: ${m===null?'?':signed(m+prof+crushing+warmaster)} to hit, 1d${martialDie}${damage===null?' + ?':damage?' '+signed(damage):''} bludgeoning${manifestationDamage}`);
  }
  out.attacks=attackLines.join('\n');
  // An enhancement the sheet cannot see makes every figure on a weapon's line
@@ -385,6 +390,8 @@ export function adaptCharacter(report,index,template){
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
  if(c.feat_note)out.features+=(out.features?'\n\n':'')+'Feat choices\n'+c.feat_note;
  if(manifestations.length)out.features+=(out.features?'\n\n':'')+manifestations.map(x=>`${x.name}: ${x.active?'ON':'OFF'} — adds ${x.damage} to unarmed attacks when active.`).join('\n');
+ if(ambusher)out.features+=(out.features?'\n\n':'')+"Sentinel Weapon: +1 initiative; advantage on Perception checks.\nAmbusher’s Streak: +1d6 necrotic on weapon hits (including ranged) in combat against targets that have not taken a turn yet.";
+ if(warmaster)out.features+=(out.features?'\n\n':'')+"Heightened Manoeuvre: targets have disadvantage on saves using your weapon action DC (including manoeuvres).";
  // Conditional spell-attack bonuses must not inflate melee spells or save DC.
  const rangedSpellBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).rangedSpellAttackBonus,0);
  if(rangedSpellBonus)out.features+=(out.features?'\n\n':'')+`Ranged spell attacks: +${rangedSpellBonus} in addition to the spell attack bonus shown.`;
