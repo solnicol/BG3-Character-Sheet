@@ -1,3 +1,4 @@
+import {equippedEffects,ITEM_EFFECTS} from './item-effects.mjs';
 import {weaponProperties,weaponEnhancementUnknown} from './weapon-data.mjs';
 // Explicit translation from the pinned parser's report to the editable sheet.
 export const PARSER_REVISION='9578ff7c46a1aa40c805f6b7beecf907f10fb3b8';
@@ -81,6 +82,10 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // Uncommon that gamedata.json records for this stats ID.
 // Reaper's Embrace: heavy, class 19, per https://bg3.wiki/wiki/Reaper%27s_Embrace.
 export const NAMED_ARMOUR=new Map([
+ // https://bg3.wiki/wiki/Dark_Justiciar_Half-Plate_(Very_Rare)
+ ['UNI_DarkJusticiarArmor_HalfPlate',{name:'Dark Justiciar Half-Plate',type:'medium',ac:17}],
+ // Distinct rare variant, not interchangeable with the quest reward.
+ ['MAG_DarkJusticiar_HalfPlate',{name:'Dark Justiciar Half-Plate',type:'medium',ac:16}],
  // https://bg3.wiki/wiki/Sharpened_Snare_Cuirass
  // Exotic Material allows the full Dexterity modifier despite medium armour.
  ['MAG_Druid_Late_Hide_Armor_2',{name:'Sharpened Snare Cuirass',type:'medium',ac:14,dexCap:Infinity}],
@@ -107,7 +112,7 @@ const PLAIN_ENHANCEMENT=new Set([
  'UNI_Leather_Halsin',             // Druid Leather Armour
  'UNI_Leather_Jaheira',            // Leather Armour
 ]);
-export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!PLAIN_ENHANCEMENT.has(i.stats)&&!/\+\d/.test(i.name||'');
+export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!PLAIN_ENHANCEMENT.has(i.stats)&&!ITEM_EFFECTS.get(i.stats)?.shieldAC&&!/\+\d/.test(i.name||'');
 export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;
 export const XP_LEVELS=[null,0,300,900,2700,6500,13000,21000,30000,42000,56000,76000,100000];
 // Progress through the current level, or null when the total sits below the
@@ -177,6 +182,10 @@ export function adaptCharacter(report,index,template){
  // real 'Breast' armour, and a 'Ring' called "Ring of Mind-Shielding" is not
  // a shield.
  const wornItems=c.equipped||[];
+ const effects=equippedEffects(wornItems);
+ const effectSum=key=>effects.reduce((n,e)=>n+(e[key]||0),0);
+ out.saveBonuses=Object.fromEntries(ABILITIES.map(a=>[a,effectSum('saveAll')+effects.reduce((n,e)=>n+(e.saves?.[a]||0),0)]));
+ out.skillBonuses=Object.fromEntries(SKILLS.map(k=>[k,effects.reduce((n,e)=>n+(e.skills?.[k]||0),0)]));
  // Stable saved stats IDs; carried items confer no equipped bonuses.
  // https://bg3.wiki/wiki/Ambusher
  const ambusher=wornItems.some(i=>i.stats==='MAG_Ambusher_Shortsword'&&/^Melee (Main|Offhand) Weapon$/.test(i.slot||''));
@@ -201,7 +210,7 @@ export function adaptCharacter(report,index,template){
    const armourItem=wornItems.find(i=>i.slot==='Breast'||i.slot==='Body')||wornItems.find(i=>!i.slot&&armourFamily(i));
    const match=armourItem?armourFamily(armourItem):null;
    const shieldItem=wornItems.find(i=>(i.slot==='Shield'||/Offhand/i.test(i.slot||''))&&/Shield|Warboard/i.test(`${i.name||''} ${i.stats||''}`));
-   const shieldBonus=shieldItem?2+Number((shieldItem.name||'').match(/\+(\d+)/)?.[1]||0):0;
+   const shieldBonus=shieldItem?(ITEM_EFFECTS.get(shieldItem.stats)?.shieldAC??(2+Number((shieldItem.name||'').match(/\+(\d+)/)?.[1]||0))):0;
    if(armourItem&&!match) {
      // Armour is worn but its class is unknown to us. Treating it as
      // unarmoured would silently under-report by up to seven points, so the
@@ -296,8 +305,8 @@ export function adaptCharacter(report,index,template){
  const attackItems=equippedOrdered.filter(i=>weaponProperties(i));
  // https://bg3.wiki/wiki/Marksmanship_Hat: +1 to ranged weapon and spell attack rolls.
  const marksmanship=wornItems.some(i=>i.slot==='Helmet'&&i.stats==='MAG_ofMarksmanship_Hat')?1:0;
- out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0)+marksmanship+warmaster;
- out.spellDcBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellDcBonus,0);
+ out.spellAttackBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellAttackBonus,0)+marksmanship+warmaster+effectSum('spellAttack');
+ out.spellDcBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).spellDcBonus,0)+effectSum('spellDC');
  const attackLines=attackItems.map(i=>{
    const w=weaponProperties(i),str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
    const proficiencies=c.equipment_proficiencies;
@@ -327,8 +336,9 @@ export function adaptCharacter(report,index,template){
    const sign=n=>n>=0?'+'+n:String(n);
    // A second damage type the weapon adds on every hit rides after the first.
    const bonusApplies=w.bonusDamage&&(!w.bonusDamage.race||w.bonusDamage.race===text(c.race));
-   const rider=bonusApplies?` + ${w.bonusDamage.die} ${w.bonusDamage.type}`:'';
-   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}${rider}`;
+   const rider=(bonusApplies?` + ${w.bonusDamage.die} ${w.bonusDamage.type}`:'')+(effectSum('acid')?` + ${effectSum('acid')} acid`:'');
+   const darkveil=ranged&&wornItems.some(x=>x.stats==='MAG_Shadow_Blinding_Bow'&&/Ranged/.test(x.slot||''))&&(c.statuses||[]).some(x=>x.id==='MAG_SHADOW_OBSCURITY_ATTACK_BONUS');
+   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)}${darkveil?' +1d4':''} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}${rider}`;
  });
  if(monkLevel>0){
    const str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
@@ -392,6 +402,9 @@ export function adaptCharacter(report,index,template){
  if(manifestations.length)out.features+=(out.features?'\n\n':'')+manifestations.map(x=>`${x.name}: ${x.active?'ON':'OFF'} — adds ${x.damage} to unarmed attacks when active.`).join('\n');
  if(ambusher)out.features+=(out.features?'\n\n':'')+"Sentinel Weapon: +1 initiative; advantage on Perception checks.\nAmbusher’s Streak: +1d6 necrotic on weapon hits (including ranged) in combat against targets that have not taken a turn yet.";
  if(warmaster)out.features+=(out.features?'\n\n':'')+"Heightened Manoeuvre: targets have disadvantage on saves using your weapon action DC (including manoeuvres).";
+ const itemNotes=effects.map(e=>e.note).filter(Boolean);
+ if(wornItems.some(i=>i.stats==='MAG_Shadow_Blinding_Bow'&&/Ranged/.test(i.slot||'')))itemNotes.push('Darkveil Precision: +1d4 to ranged weapon attack rolls while obscured; included above only when active in the save.');
+ if(itemNotes.length)out.features+=(out.features?'\n\n':'')+itemNotes.join('\n');
  // Conditional spell-attack bonuses must not inflate melee spells or save DC.
  const rangedSpellBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).rangedSpellAttackBonus,0);
  if(rangedSpellBonus)out.features+=(out.features?'\n\n':'')+`Ranged spell attacks: +${rangedSpellBonus} in addition to the spell attack bonus shown.`;

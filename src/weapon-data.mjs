@@ -34,6 +34,10 @@ const QUARTERSTAFF=/Quaterstaff|\bStaff/i;
 // modifier the weapon adds to damage on top of its own, with `extraMin` as the
 // floor the weapon guarantees.
 export const NAMED_WEAPONS=new Map([
+ // https://bg3.wiki/wiki/Blade_of_Oppressed_Souls
+ ['MAG_Illithid_MindOverload_Weapon_Longsword',{name:'Blade of Oppressed Souls',base:'Longsword',enhancement:1,bonusDamage:{die:'1d4',type:'psychic'}}],
+ // https://bg3.wiki/wiki/Drakethroat_Glaive
+ ['MAG_BG_DragonsBreath_Glaive',{name:'Drakethroat Glaive',base:'Glaive',enhancement:2}],
  // https://bg3.wiki/wiki/Ambusher: +1 finesse shortsword; conditional effects are separate.
  ['MAG_Ambusher_Shortsword',{name:'Ambusher',base:'Shortsword',enhancement:1}],
  // https://bg3.wiki/wiki/Incandescent_Staff: no weapon enchantment; ranged spells only.
@@ -60,9 +64,9 @@ export const NAMED_WEAPONS=new Map([
  // a History check reveals the name the save stores. The revealed name is the
  // one that loses the +1.
  ['UND_SharranCrossbow',{name:'Sharran Crossbow',base:'Light Crossbow',enhancement:1}],
- // Least Expected: a shortbow. Its +1d4 applies only while its wielder is
- // obscured, so it is a condition rather than an enhancement and scores as 0.
- ['MAG_Shadow_Blinding_Bow',{name:'Least Expected',base:'Shortbow',enhancement:0}],
+ // https://bg3.wiki/wiki/Least_Expected: +2 enchantment. Darkveil Precision
+ // is a separate conditional 1d4 ATTACK-roll bonus, never extra damage.
+ ['MAG_Shadow_Blinding_Bow',{name:'Least Expected',base:'Shortbow',enhancement:2}],
  // Rain Dancer: a quarterstaff whose stat block reads 'Enchantment: None'. It
  // is listed for that zero, which is what stops the note below calling its
  // figures possibly understated; its Create Water charge is not an

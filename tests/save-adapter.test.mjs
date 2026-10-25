@@ -235,8 +235,8 @@ test('a named weapon can declare the base its identifier hides',()=>{
  // The save stores the revealed name, which is the one without the +1 in it.
  const sc=weaponProperties({name:'Sharran Crossbow',stats:'UND_SharranCrossbow'});
  assert.equal(sc.name,'Light Crossbow');assert.equal(sc.enhancement,1);
- // A conditional bonus is not an enhancement.
- assert.equal(weaponProperties({name:'Least Expected',stats:'MAG_Shadow_Blinding_Bow'}).enhancement,0);
+ // The +2 enchantment is independent of the conditional Darkveil attack die.
+ assert.equal(weaponProperties({name:'Least Expected',stats:'MAG_Shadow_Blinding_Bow'}).enhancement,2);
  // A verified zero is worth listing too: it stops the summary calling the
  // figures possibly understated when the stat block says Enchantment: None.
  assert.equal(weaponEnhancementUnknown({name:'Rain Dancer',stats:'UNI_StaffOfRain'}),false);
