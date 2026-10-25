@@ -26,3 +26,16 @@ test(`two camp hirelings retain separate names, builds and inventory: ${label}`,
  assert.equal(adaptCharacter(report,report.characters.indexOf(circe),blank()).sheet.ac,13);
 });
 }
+
+test('an active renamed hireling retains her name while another hireling is at camp',{skip:!process.env.HIRELINGS_ACTIVE_SAVE},()=>{
+ let report;const self={postMessage(m){if(m.kind==='error')throw Error(m.message);if(m.kind==='report')report=m.report;}};
+ const context=vm.createContext({self,TextDecoder,TextEncoder,Uint8Array,ArrayBuffer,DataView,console});
+ vm.runInContext(readFileSync(new URL('../assets/bg3-worker.js',import.meta.url),'utf8'),context);
+ const b=readFileSync(process.env.HIRELINGS_ACTIVE_SAVE);self.onmessage({data:{buffer:b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),name:'Hirelings.lsv'}});
+ const circe=report.characters.filter(c=>c.name==='Circe'),athena=report.characters.filter(c=>c.name==='Athena');
+ assert.equal(circe.length,1);assert.equal(athena.length,1);
+ assert.equal(circe[0].at_camp,false);assert.equal(athena[0].at_camp,true);
+ assert.ok(!report.characters.some(c=>c.name==='Hireling_Bard'));
+ assert.ok(circe[0].equipped.some(i=>i.stats==='SCL_SpidersLyre'));
+ assert.ok(!athena[0].equipped.some(i=>i.stats==='SCL_SpidersLyre'));
+});
