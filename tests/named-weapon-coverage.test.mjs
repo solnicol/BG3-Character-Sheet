@@ -27,3 +27,18 @@ test('Infernal Rapier raises spell save DC by one',()=>{
  const r=sheet({equipped:[{name:'Infernal Rapier',stats:'ORI_Wyll_Infernal_Rapier',slot:'Melee Main Weapon'}]});
  assert.equal(r.sheet.spellDcBonus,1);assert.equal(r.sheet.spellAttackBonus,0);
 });
+
+test('Ambusher and Warmaster apply equipped bonuses without unconditional streak damage',()=>{
+ const sword={name:'Ambusher',stats:'MAG_Ambusher_Shortsword',slot:'Melee Main Weapon'};
+ const gloves={name:'Gauntlets',stats:'MAG_OfWarMaster_Gloves',slot:'Gloves'};
+ const bow={name:'Shortbow',stats:'WPN_Shortbow',slot:'Ranged Main Weapon'};
+ const r=sheet({equipped:[sword,gloves,bow]}).sheet;
+ assert.match(r.attacks,/Ambusher: \+8 to hit, 1d6 \+4 piercing/);
+ assert.match(r.attacks,/Shortbow: \+7 to hit, 1d6 \+3 piercing/);
+ assert.equal(r.initiative,4);assert.equal(r.spellAttackBonus,1);assert.equal(r.spellDcBonus,0);
+ assert.match(r.features,/advantage on Perception/);assert.match(r.features,/including ranged/);assert.match(r.features,/have not taken a turn yet/);assert.match(r.features,/disadvantage on saves/);
+ assert.doesNotMatch(r.attacks,/necrotic/);assert.equal(weaponEnhancementUnknown(sword),false);
+ const carried=sheet({equipped:[bow],carried:[sword,gloves]}).sheet;
+ assert.equal(carried.initiative,3);assert.equal(carried.spellAttackBonus,0);assert.doesNotMatch(carried.features,/Sentinel Weapon|Heightened Manoeuvre/);
+ assert.equal(sheet({equipped:[sword],initiative:9}).sheet.initiative,9);
+});

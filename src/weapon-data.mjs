@@ -34,6 +34,8 @@ const QUARTERSTAFF=/Quaterstaff|\bStaff/i;
 // modifier the weapon adds to damage on top of its own, with `extraMin` as the
 // floor the weapon guarantees.
 export const NAMED_WEAPONS=new Map([
+ // https://bg3.wiki/wiki/Ambusher: +1 finesse shortsword; conditional effects are separate.
+ ['MAG_Ambusher_Shortsword',{name:'Ambusher',base:'Shortsword',enhancement:1}],
  // https://bg3.wiki/wiki/Incandescent_Staff: no weapon enchantment; ranged spells only.
  ['MAG_FlamingFist_StaffOfFire',{name:'Incandescent Staff',base:'Quarterstaff',enhancement:0,rangedSpellAttackBonus:1}],
  // https://bg3.wiki/wiki/Ne%27er_Misser: force replaces the base piercing damage.
