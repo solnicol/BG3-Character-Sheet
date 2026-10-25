@@ -256,7 +256,7 @@ export function adaptCharacter(report,index,template){
      // sources live with NAMED_ARMOUR, rather than appearing as import errors.
    }
  } else if(Number.isFinite(c.armour_class)) out.ac=c.armour_class;
- out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2)+(ambusher?1:0):'');
+ out.initiative=Number.isFinite(c.initiative)?c.initiative:(Number.isInteger(out.abilities.dex)?Math.floor((out.abilities.dex-10)/2)+(ambusher?1:0)+effectSum('initiative'):'');
  out.slots=Array(6).fill('');out.pactSlots=Array(6).fill('');
  for(const r of resources){if(r.guid==='d136c5d9-0ff0-43da-acce-a74a07f8d6bf'&&integer(r.level,1,6))out.slots[r.level-1]=amount(r.current)+' / '+amount(r.max)}
  const pact=resources.filter(r=>/warlock.*slot/i.test(r.name||''));

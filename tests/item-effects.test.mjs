@@ -38,3 +38,12 @@ test('carried named weapons have complete base definitions for future equipment 
  assert.equal(blade.enhancement,1);assert.deepEqual(blade.bonusDamage,{die:'1d4',type:'psychic'});
  assert.equal(weaponProperties(item('MAG_BG_DragonsBreath_Glaive','Melee Main Weapon')).enhancement,2);
 });
+test('Fistbreaker Helm grants initiative and spell DC, not spell attack, only while equipped',()=>{
+ const helm=item('MAG_BarbMonk_Cloth_Hat_A_1_Late','Helmet');
+ const c={abilities:{str:8,dex:16,con:14,int:8,wis:10,cha:20},equipped:[helm]};
+ const s=make(c);assert.equal(s.initiative,4);assert.equal(s.spellDcBonus,1);assert.equal(s.spellAttackBonus,0);
+ const carried=make({...c,equipped:[],carried:[helm]});assert.equal(carried.initiative,3);assert.equal(carried.spellDcBonus,0);
+ const wrongSlot=make({...c,equipped:[{...helm,slot:'Inventory'}]});assert.equal(wrongSlot.initiative,3);assert.equal(wrongSlot.spellDcBonus,0);
+ assert.equal(make({...c,initiative:4}).initiative,4,'a saved initiative total must not receive the bonus twice');
+ assert.equal(make({...c,abilities:{...c.abilities,dex:null}}).initiative,'','unknown Dexterity must not produce an estimated initiative');
+});
