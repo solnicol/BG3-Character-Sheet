@@ -17,10 +17,15 @@ The importer uses saved item stats IDs and equipment slots, not character names 
 | Blade of Oppressed Souls | +1 longsword with 1d4 psychic damage, including when equipped in a future save. |
 | Drakethroat Glaive | +2 glaive. Merely carrying it does not apply its cast enchantment to another weapon. |
 | Absorb Elements resource | GUID `6275ca19-95d9-469c-a649-b26f990882fa` resolves to Absorb Elements, preserving saved current/maximum charges. |
+| Swiresy Shoes | +1 Acrobatics; jump distance described. |
+| Boots of Striding | +1 Athletics; Focused Stride described. |
+| Jhannyl’s Gloves | +1 to every saving throw, stacking with Moon Devotion Robe; Defy Villainy described. |
+| Hellrider Longbow | +1 longbow; +3 initiative from the ranged slot only. Perception advantage and Faerie Fire described. |
+| Item charge markers | `MAG_…_OWNER` and `MAG_…_RESOURCE` statuses are left off conditions; their charges already appear under resources. Interrupt resources read as names (Misty Escape, Psionic Dominance charge). |
 
 ## Additional conditional benefits
 
-Equipped-only notes cover Risky Ring, the Whispering Promise, Vivacious Cloak, Boots of Aid and Comfort, Circlet of Mental Anguish, Ring of Mental Inhibition, Snowburst Ring, the Mighty Cloth, Boots of Brilliance, Psychic Spark and Cloak of Elemental Absorption, alongside the armour/shield effects above. Ambusher and Gauntlets of the Warmaster retain the preceding change’s support.
+Equipped-only notes cover Robe of Supreme Defences, Ring of Twilight, Wapira’s Crown, Ring of Absolute Force, Cloak of Displacement, Incandescent Staff, Disintegrating Night Walkers, Risky Ring, the Whispering Promise, Vivacious Cloak, Boots of Aid and Comfort, Circlet of Mental Anguish, Ring of Mental Inhibition, Snowburst Ring, the Mighty Cloth, Boots of Brilliance, Psychic Spark and Cloak of Elemental Absorption, alongside the armour/shield effects above. Ambusher and Gauntlets of the Warmaster retain the preceding change’s support.
 
 Dice are never converted to an average bonus. Advantage/disadvantage and triggered healing/temporary HP are described rather than silently added to totals. Current HP, temporary HP, ability scores, resources and spell availability continue to come from the save. Item notes do not invent remaining charges or overwrite the saved spellbook.
 

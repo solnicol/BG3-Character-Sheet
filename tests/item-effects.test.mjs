@@ -47,3 +47,29 @@ test('Fistbreaker Helm grants initiative and spell DC, not spell attack, only wh
  assert.equal(make({...c,initiative:4}).initiative,4,'a saved initiative total must not receive the bonus twice');
  assert.equal(make({...c,abilities:{...c.abilities,dex:null}}).initiative,'','unknown Dexterity must not produce an estimated initiative');
 });
+test('Swiresy Shoes and Boots of Striding add their skill bonuses only while worn',()=>{
+ assert.equal(make({equipped:[item('MAG_Jumping_Shoes','Boots')]}).skillBonuses.Acrobatics,1);
+ assert.equal(make({equipped:[item('MAG_Paladin_MomentumOnConcentration_Boots','Boots')]}).skillBonuses.Athletics,1);
+ assert.equal(make({carried:[item('MAG_Jumping_Shoes','Boots')]}).skillBonuses.Acrobatics,0);
+});
+test('Jhannyl’s Gloves add +1 to every save and stack with Moon Devotion Robe',()=>{
+ const s=make({equipped:[item('MAG_Harpers_JhannylGloves','Gloves'),item('MAG_Selunite_Isobel_Robe','Breast')]});
+ assert.ok(Object.values(s.saveBonuses).every(v=>v===2));assert.match(s.features,/Defy Villainy/);
+});
+test('Hellrider Longbow is a +1 longbow granting +3 initiative from the ranged slot only',()=>{
+ const bow=item('MAG_WYR_Hellrider_Longbow','Ranged Main Weapon');
+ const s=make({equipped:[bow]});
+ assert.equal(s.initiative,8);assert.match(s.attacks,/1d8 \+6 piercing/);assert.match(s.features,/Faerie Fire/);
+ assert.equal(make({carried:[bow]}).initiative,5);
+});
+test('conditional item effects are described without changing totals',()=>{
+ const s=make({equipped:[item('MAG_OfArcanicDefense_Robe','Breast'),item('MAG_Harpers_RingOfTwilight','Ring 1'),item('MAG_PHB_CloakOfDisplacement_Cloak','Cloak'),item('FOR_NightWalkers','Boots'),item('MAG_Healer_HealSelf_Helmet','Helmet'),item('UND_KC_RingOfAbsolute','Ring 2')]});
+ for(const text of ['Exquisite Focus','Treader by Twilight','Displacement','Night Walker','Crowning Glory','Absolute’s Tempest'])assert.match(s.features,new RegExp(text));
+ assert.equal(s.ac,15);assert.deepEqual(s.saveBonuses,{str:0,dex:0,con:0,int:0,wis:0,cha:0});
+});
+test('item charge markers stay off conditions and interrupt resources read as names',()=>{
+ const s=make({statuses:[{id:'MAG_PARALYZING_CRITICAL_OWNER'},{id:'MAG_ABSORB_ELEMENT_RESOURCE'},{id:'LONGSTRIDER'}],
+  resources:[{name:'Interrupt_MistyEscape',guid:'a',current:1,max:1},{name:'Interrupt_TAD_PsionicDominance_Charge',guid:'b',current:1,max:1}]});
+ assert.equal(s.conditions,'Longstrider');
+ assert.match(s.resources,/^Misty Escape: 1 \/ 1$/m);assert.match(s.resources,/^Psionic Dominance charge: 1 \/ 1$/m);
+});

@@ -53,6 +53,9 @@ export const NAMED_WEAPONS=new Map([
  // Titanstring Bow: a +1 longbow whose Titan Weapon property adds the wielder's
  // Strength modifier to damage, never less than 1.
  ['MAG_StrongString_Longbow',{name:'Titanstring Bow',enhancement:1,extra:'str',extraMin:1}],
+ // https://bg3.wiki/wiki/Hellrider_Longbow: +1 longbow; its initiative bonus
+ // lives in item-effects.mjs.
+ ['MAG_WYR_Hellrider_Longbow',{name:'Hellrider Longbow',base:'Longbow',enhancement:1}],
  // `base` names the weapon this is built on, for the items whose identifier
  // says nothing about it, and `ability` overrides how the attack is rolled.
  //
