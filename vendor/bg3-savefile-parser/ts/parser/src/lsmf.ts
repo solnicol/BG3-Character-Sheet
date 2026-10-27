@@ -399,6 +399,40 @@ export function parseLsmfAbilityScores(blob: Uint8Array): Map<number, number[]> 
   return out;
 }
 
+/** Effective ability scores and proficiency by entity GUID:
+ * [STR,DEX,CON,INT,WIS,CHA,proficiency].
+ *
+ *  Read the way parseLsmfHealth reads health: the component's data offset and
+ *  ownerlist start are both heap-relative, and with LSMF_HEAP_BASE applied the
+ *  k-th 36-byte record ({u32, u32 0, six scores, proficiency}) belongs to the
+ *  entity in the k-th ownerlist slot. No owner shift is inferred, so records
+ *  of neighbouring same-level characters cannot be exchanged, as
+ *  parseLsmfAbilityScores' shift search did in a multiplayer save. */
+export function parseLsmfAbilityScoresByGuid(blob: Uint8Array): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  const scan = scanLsmfBlob(blob);
+  if (!scan) return out;
+  const idx = lsmfComponentIndex(blob);
+  const st = heapComponent(idx, 'game.stats.v3.StatsComponent');
+  const entities = heapComponent(idx, 'core.v0.EntityId');
+  if (st?.elemSize !== 36 || !entities || entities.elemSize !== 16) return out;
+  const owners = scan.records.find(([i]) => scan.compDescs[i]?.name === st.name);
+  if (!owners || owners[2] !== st.rowCount) return out;
+  const { dv } = align(blob);
+  for (let k = 0; k < st.rowCount; k++) {
+    const owner = owners[1] + LSMF_HEAP_BASE + k * 4;
+    const p = st.dataOffset + k * st.elemSize;
+    if (owner + 4 > blob.length || p + st.elemSize > blob.length) break;
+    const row = dv.getUint32(owner, true);
+    const entity = entities.dataOffset + row * 16;
+    if (row >= entities.rowCount || entity + 16 > blob.length) continue;
+    const v = Array.from({ length: 7 }, (_, i) => dv.getInt32(p + 8 + i * 4, true));
+    if (!v.slice(0, 6).every((x) => x >= 1 && x <= 40) || v[6]! < 0 || v[6]! > 10) continue;
+    out.set(guidLeStr(blob, entity), v);
+  }
+  return out;
+}
+
 /** Read health from the saved component row and its explicit entity owner.
  * Component and owner-list pointers are heap-relative; neither row position nor
  * a predicted class HP total identifies an entity.
