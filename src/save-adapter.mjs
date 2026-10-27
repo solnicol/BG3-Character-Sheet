@@ -49,11 +49,14 @@ export function statusName(id){
  return words.filter((w,i)=>i===0||w.toLowerCase()!==words[i-1].toLowerCase()).join(' ');
 }
 // Only the non-permanent entries reach the sheet; the permanent ones are the
-// item auras and carried-object flags the game's own panel leaves out.
+// item auras and carried-object flags the game's own panel leaves out. An
+// item's _OWNER or _RESOURCE marker is bookkeeping for a charge the sheet
+// already lists under resources, as MAG_PARALYZING_CRITICAL_OWNER is.
+const ITEM_MARKER=/^MAG_.+_(OWNER|RESOURCE)$/;
 export function activeConditions(statuses){
  const seen=new Set(),out=[];
  for(const s of statuses||[]){
-  if(!s||s.permanent||s.id==='TAD_PEACE_BREAKER')continue;
+  if(!s||s.permanent||s.id==='TAD_PEACE_BREAKER'||ITEM_MARKER.test(s.id))continue;
   const name=statusName(s.id);
   if(!name||seen.has(name))continue;
   seen.add(name);out.push(name);
@@ -261,7 +264,7 @@ export function adaptCharacter(report,index,template){
  for(const r of resources){if(r.guid==='d136c5d9-0ff0-43da-acce-a74a07f8d6bf'&&integer(r.level,1,6))out.slots[r.level-1]=amount(r.current)+' / '+amount(r.max)}
  const pact=resources.filter(r=>/warlock.*slot/i.test(r.name||''));
  for(const r of pact){if(integer(r.level,1,6)&&(r.max>0||r.current>0))out.pactSlots[r.level-1]=amount(r.current)+' / '+amount(r.max)}
- const resourceLabel=r=>({Interrupt_LuckOfTheFarRealms_Charge:'Luck of the Far Realms charge',LuckOfFarRealmsCharge:'Luck of the Far Realms charge',SuperiorityDie:'Superiority Die'}[r.name]||String(r.name||'Unresolved resource '+r.guid).replaceAll('_',' '));
+ const resourceLabel=r=>({Interrupt_LuckOfTheFarRealms_Charge:'Luck of the Far Realms charge',LuckOfFarRealmsCharge:'Luck of the Far Realms charge',SuperiorityDie:'Superiority Die'}[r.name]||(r.name?title(String(r.name).replace(/^Interrupt_(TAD_)?/,'').replace(/_Charge$/,' charge')):'Unresolved resource '+r.guid));
  out.resources=resources.filter(r=>r.guid!=='d136c5d9-0ff0-43da-acce-a74a07f8d6bf'&&!/warlock.*slot/i.test(r.name||'')&&(r.max>0||r.current>0)).map(r=>`${resourceLabel(r)}${r.level?' (level '+r.level+')':''}: ${amount(r.current)} / ${amount(r.max)}`).join('\n');
  out.inspiration=integer(report.save_info?.inspiration,0,4)?report.save_info.inspiration:'';
  // BG3's gamedata labels torches as melee weapons for combat purposes, but
