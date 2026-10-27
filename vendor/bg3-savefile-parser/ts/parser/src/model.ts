@@ -1,3 +1,4 @@
+import {recoverPlayerNames} from '../../../../../src/multiplayer';
 import {applySavedBuild} from '../../../../../src/build-rules.mjs';
 import {discoverCampHirelings} from '../../../../../src/camp-hirelings';
 import {resolveInventory} from '../../../../../src/inventory-ownership.mjs';
@@ -17,7 +18,6 @@ import {
   parseLsmfAllContainerPositions,
   parseLsmfCampSupplies,
   parseLsmfCampChestProfiles,
-  parseLsmfCcNames,
   parseLsmfClasses,
   parseLsmfComponentRows,
   parseLsmfConcentration,
@@ -493,7 +493,6 @@ export function gatherReport(
   const interruptPrefs = lsmfBlob
     ? parseLsmfInterruptPreferences(lsmfBlob)
     : new Map<number, string[]>();
-  const ccNames = lsmfBlob ? parseLsmfCcNames(lsmfBlob) : [];
   const campHirelings=lsmfBlob?discoverCampHirelings(nodes0,lsmfBlob,dn,new Set(partyNodes.values())):[];
   for(const h of campHirelings){
     partyNodes.set(h.name,h.node);
@@ -503,18 +502,10 @@ export function gatherReport(
   }
   const normName = (s: string): string => s.toLowerCase().replace(/[^a-z]/g, '');
 
-  // Hirelings' custom names exist only in the CC stats rows; unambiguous
-  // only with a single hireling and a single unrecognised created name.
-  const hirelingNames = new Map<string, string>();
-  const hirelingOrigins = partyInfo
-    .map((ci) => ci.Origin ?? '')
-    .filter((o) => o.startsWith('Hireling_'));
-  if (hirelingOrigins.length === 1 && ccNames.length) {
-    const known = new Set(Object.values(PARTY_ORIGINS).map(normName));
-    known.add(normName(leaderName ?? ''));
-    const extras = ccNames.filter((n) => !known.has(normName(n)));
-    if (extras.length === 1) hirelingNames.set(hirelingOrigins[0]!, extras[0]!);
-  }
+  // Use the same complete, uniquely matched creation/build records for active
+  // hirelings as for camp hirelings. The former single-extra-name fallback
+  // stopped working whenever another named hireling remained in camp.
+  const activeCustomNames = recoverPlayerNames(nodes0, partyInfo, dn);
   const statsEntByNorm = new Map<string, number>(
     [...statsEntities].filter(([k]) => k !== '__player__').map(([k, v]) => [normName(k), v]),
   );
@@ -1018,8 +1009,8 @@ export function gatherReport(
     let displayName = PLAYER_ORIGINS.has(origin) ? playerDisplayName : origin;
     const posKeyName = displayName;
     if (origin.startsWith('Hireling_')) {
-      const custom = hirelingNames.get(origin);
-      if (custom) displayName = `${custom} (hireling)`;
+      const custom = activeCustomNames.get(charInfo);
+      if (custom) displayName = custom;
     }
     const char: CharacterReport = {
       name: displayName,
@@ -1080,7 +1071,7 @@ export function gatherReport(
   // the ECS blob matched on the origin's fixed base class.
   const chestPos = findCampChest(nodes0);
   if (chestPos !== null && chestPos !== '0,0,0') {
-    const activeNames = new Set(report.characters.map((c) => c.name));
+    const activeNames = new Set([...report.characters.map((c) => c.name), ...partyInfo.map(c=>c.Origin??'Generic')]);
     const campNames = [...charPositions.entries()]
       .filter(([name, pos]) => !activeNames.has(name) && campDistance(pos, chestPos) <= CAMP_RADIUS)
       .map(([name]) => name)
