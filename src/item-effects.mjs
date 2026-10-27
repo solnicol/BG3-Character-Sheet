@@ -3,6 +3,7 @@
 // save: do not add an item's Strength/Charisma/temporary-HP effects again.
 const wiki=page=>'https://bg3.wiki/wiki/'+page;
 export const ITEM_EFFECTS=new Map([
+ ['MAG_BarbMonk_Cloth_Hat_A_1_Late',{slot:/^Helmet$/,initiative:1,spellDC:1,source:wiki('Fistbreaker_Helm')}],
  ['UNI_MassHealRing',{slot:/^Ring/,note:'Blessed Mercy: healed creatures gain +1d4 to attacks and saves for 2 turns; does not stack with Bless.',source:wiki('The_Whispering_Promise')}],
  ['UND_SocietyOfBrilliance_MagicMissileNecklace',{slot:/^Amulet$/,note:'Psychic Missiles: Magic Missile fires one additional dart.',source:wiki('Psychic_Spark')}],
  ['MAG_Acid_AcidDamageOnWeaponAttack_Ring',{slot:/^Ring/,acid:2,source:wiki('Caustic_Band')}],
@@ -21,6 +22,17 @@ export const ITEM_EFFECTS=new Map([
  ['MAG_BarbMonk_Offensive_Cloth',{slot:/^(Breast|Body)$/,note:'Bull’s Strength: advantage on Strength checks; double carrying capacity. Cannot be pushed; advantage against restraint.',source:wiki('The_Mighty_Cloth')}],
  ['MAG_Bard_RefreshBardicInspirationSlot_Shoes',{slot:/^Boots$/,note:'Restore Bardic Inspiration: restore one charge, once per long rest.',source:wiki('Boots_of_Brilliance')}],
  ['MAG_ElementalGish_AbsorbElements_Cloak',{slot:/^Cloak$/,note:'Absorb Elements: reaction to halve incoming elemental damage; your next weapon attack adds 1d6 of that element.',source:wiki('Cloak_of_Elemental_Absorption')}],
+ ['MAG_Jumping_Shoes',{slot:/^Boots$/,skills:{Acrobatics:1},note:'Refined Vaulting: jump distance +1.5 m.',source:wiki('Swiresy_Shoes')}],
+ ['MAG_OfArcanicDefense_Robe',{slot:/^(Breast|Body)$/,note:'Exquisite Focus: while concentrating, add your spellcasting modifier to saving throws and gain +1 AC.',source:wiki('Robe_of_Supreme_Defences')}],
+ ['MAG_Harpers_RingOfTwilight',{slot:/^Ring/,note:'Treader by Twilight: +1 AC while obscured.',source:wiki('Ring_of_Twilight')}],
+ ['MAG_Healer_HealSelf_Helmet',{slot:/^Helmet$/,note:'Crowning Glory: regain 1d6 HP when you heal another creature.',source:wiki('Wapira%27s_Crown')}],
+ ['UND_KC_RingOfAbsolute',{slot:/^Ring/,note:'Absolute’s Tempest: +1 thunder damage on thunder spells and attacks if you bear the Absolute’s brand.',source:wiki('Ring_of_Absolute_Force')}],
+ ['MAG_PHB_CloakOfDisplacement_Cloak',{slot:/^Cloak$/,note:'Displacement: each turn, attacks against you have disadvantage until you take damage.',source:wiki('Cloak_of_Displacement')}],
+ ['MAG_FlamingFist_StaffOfFire',{slot:/^Melee Main Weapon$/,note:'Incandescent Staff: resistance to fire damage.',source:wiki('Incandescent_Staff')}],
+ ['FOR_NightWalkers',{slot:/^Boots$/,note:'Night Walker: cannot be Enwebbed, Entangled or Ensnared, and cannot slip on grease or ice.',source:wiki('Disintegrating_Night_Walkers')}],
+ ['MAG_Harpers_JhannylGloves',{slot:/^Gloves$/,saveAll:1,note:'Defy Villainy: automatically cast Lesser Restoration on yourself when Blinded, Paralysed or Poisoned.',source:wiki('Jhannyl%27s_Gloves')}],
+ ['MAG_Paladin_MomentumOnConcentration_Boots',{slot:/^Boots$/,skills:{Athletics:1},note:'Focused Stride: casting a concentration spell grants Momentum; cannot be pushed or knocked prone while concentrating.',source:wiki('Boots_of_Striding')}],
+ ['MAG_WYR_Hellrider_Longbow',{slot:/^Ranged Main Weapon$/,initiative:3,note:'Hellrider Longbow: advantage on Perception checks; hits may inflict Faerie Fire.',source:wiki('Hellrider_Longbow')}],
 ]);
 export function equippedEffects(items=[]){
  const seen=new Set();return items.flatMap(i=>{const rule=ITEM_EFFECTS.get(i.stats);if(!rule||!rule.slot.test(i.slot||'')||seen.has(i.stats))return [];seen.add(i.stats);return [rule];});

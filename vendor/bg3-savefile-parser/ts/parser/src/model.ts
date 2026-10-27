@@ -13,6 +13,7 @@ import {
   GRAVITY_DISABLED_COMP,
   OWNED_AS_LOOT_COMP,
   parseLsmfAbilityScores,
+  parseLsmfAbilityScoresByGuid,
   parseLsmfActionResources,
   parseLsmfAllContainerPositions,
   parseLsmfCampSupplies,
@@ -512,6 +513,7 @@ export function gatherReport(
   const health = lsmfBlob
     ? parseLsmfHealth(lsmfBlob)
     : new Map<string, number[]>();
+  const abilitiesByGuid = lsmfBlob ? parseLsmfAbilityScoresByGuid(lsmfBlob) : new Map<string, number[]>();
 
   /** Attach stats, resources and concentration from the stats entity. */
   const attachSheet = (char: CharacterReport, ent: number): void => {
@@ -735,6 +737,13 @@ export function gatherReport(
       if (spells) { char.spells = spellRefs(-1, spells); char.spells_note = null; }
       const h = health.get(inventory.owner);
       if (h) char.hp = { current: h[0]!, max: h[1]!, temp: h[2]!, temp_max: h[3]! };
+      // The inventory owner is the character's own entity, so its stats row is
+      // exact; the stats-entity lookup in attachSheet remains the fallback.
+      const ab = abilitiesByGuid.get(inventory.owner);
+      if (ab) {
+        char.abilities = { str: ab[0]!, dex: ab[1]!, con: ab[2]!, int: ab[3]!, wis: ab[4]!, cha: ab[5]! };
+        char.proficiency_bonus = ab[6]!;
+      }
       char.passive_toggles=passiveToggles.get(inventory.owner);
       const statsByEntity=new Map<string,string>();
       for(const [key,ids] of instanceEntityLists)for(const id of ids)statsByEntity.set(id,key.slice(key.lastIndexOf('|')+1));
