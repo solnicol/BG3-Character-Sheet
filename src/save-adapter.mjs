@@ -205,6 +205,15 @@ export function adaptCharacter(report,index,template){
    if(row)return {base:row[1],dexCap:row[2],named:null,clothing:false};
    return CLOTHING.test(text)?{base:10,dexCap:Infinity,named:null,clothing:true}:null;
  };
+ // Conditional defensive effects use equipped IDs and live saved conditions.
+ // Technical owner statuses only register an item; they do not activate it.
+ const hasStatus=id=>(c.statuses||[]).some(s=>s.id===id);
+ const supremeFocus=wornItems.some(i=>i.stats==='MAG_OfArcanicDefense_Robe'&&/^(Breast|Body)$/.test(i.slot||''))&&(Boolean(c.concentration)||hasStatus('MAG_ARCANIC_DEFENSE'));
+ const twilight=wornItems.some(i=>i.stats==='MAG_Harpers_RingOfTwilight'&&/^Ring/.test(i.slot||''))&&hasStatus('MAG_HARPERS_TWILIGHT_HIDE');
+ if(supremeFocus&&Number.isInteger(out.abilities[spellAbility])){
+   const bonus=Math.floor((out.abilities[spellAbility]-10)/2);
+   for(const a of ABILITIES)out.saveBonuses[a]+=bonus;
+ }
  if(Number.isInteger(out.abilities.dex)) {
    const dex=Math.floor((out.abilities.dex-10)/2);
    // Only a genuine body slot counts. Items with no recovered slot are
@@ -249,7 +258,9 @@ export function adaptCharacter(report,index,template){
      // https://bg3.wiki/wiki/Bracers_of_Defence
      const bracers=wornItems.some(i=>i.slot==='Gloves'&&i.stats==='UNI_ARM_OfDefense_Gloves');
      const bracersBonus=bracers&&unarmoured&&!shieldItem?2:0;
-     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+bracersBonus+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
+     const bonespike=wornItems.some(i=>i.slot==='Boots'&&i.stats==='MAG_Barbarian_BoneSpike_Shoes')&&unarmoured&&!shieldItem?1:0;
+     if(bonespike)for(const a of ABILITIES)out.saveBonuses[a]+=1;
+     out.ac=base+enhancement+(dexCap===0?0:Math.min(dexCap,dex))+shieldBonus+unarmouredDefence+bracersBonus+bonespike+(supremeFocus?1:0)+(twilight?1:0)+(match&&!match.clothing&&passives.has('FightingStyle_Defense')?1:0);
      // Magic armour or a magic shield recognised only by its family word may
      // carry an enhancement in the item rather than its name, as Armour of
      // Persistence does: the figure stands, but it may be low.
