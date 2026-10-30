@@ -73,3 +73,14 @@ test('item charge markers stay off conditions and interrupt resources read as na
  assert.equal(s.conditions,'Longstrider');
  assert.match(s.resources,/^Misty Escape: 1 \/ 1$/m);assert.match(s.resources,/^Psionic Dominance charge: 1 \/ 1$/m);
 });
+test('unarmoured defensive equipment stacks with Mage Armour, with conditional AC kept separate',()=>{
+ const c={level:9,class_levels:[{name:'Warlock',level:9}],abilities:{str:8,dex:16,con:14,int:8,wis:10,cha:20},equipped:[item('MAG_OfArcanicDefense_Robe','Breast'),item('UNI_ARM_OfDefense_Gloves','Gloves'),item('MAG_Barbarian_BoneSpike_Shoes','Boots'),item('MAG_Harpers_RingOfTwilight','Ring 1')],statuses:[{id:'MAGE_ARMOR'},{id:'MAG_ARCANIC_DEFENSE_TECHNICAL'},{id:'MAG_HARPERS_TWILIGHT_HIDE_TECHNICAL'}]};
+ const base=make(c);assert.equal(base.ac,19);assert.ok(Object.values(base.saveBonuses).every(n=>n===1));
+ const focus=make({...c,concentration:{id:'Target_Hex'}});assert.equal(focus.ac,20);assert.ok(Object.values(focus.saveBonuses).every(n=>n===6));
+ assert.equal(make({...c,concentration:{id:'Target_Hex'},statuses:[...c.statuses,{id:'MAG_HARPERS_TWILIGHT_HIDE'}]}).ac,21);
+ assert.equal(make({...c,statuses:[...c.statuses,{id:'MAG_HARPERS_TWILIGHT_HIDE'}]}).ac,20);
+ assert.equal(make({...c,statuses:[{id:'MAG_ARCANIC_DEFENSE'}]}).ac,17);
+ const shield=make({...c,equipped:[...c.equipped,item('ARM_Shield','Melee Offhand Weapon')]});assert.equal(shield.ac,18);assert.ok(Object.values(shield.saveBonuses).every(n=>n===0));
+ const armour=make({...c,equipped:[...c.equipped.filter(i=>i.slot!=='Breast'),{...item('ARM_Leather_Body','Breast'),name:'Leather Armour'}]});assert.equal(armour.ac,14);assert.ok(Object.values(armour.saveBonuses).every(n=>n===0));
+ const noBoots=make({...c,equipped:c.equipped.filter(i=>i.slot!=='Boots'),carried:[item('MAG_Barbarian_BoneSpike_Shoes','Boots')]});assert.equal(noBoots.ac,18);
+});

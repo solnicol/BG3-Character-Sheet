@@ -3,6 +3,7 @@
 // save: do not add an item's Strength/Charisma/temporary-HP effects again.
 const wiki=page=>'https://bg3.wiki/wiki/'+page;
 export const ITEM_EFFECTS=new Map([
+ ['MAG_Barbarian_BoneSpike_Shoes',{slot:/^Boots$/,note:'Evasive Instinct: +1 AC and saving throws while unarmoured and without a shield. Refined Vaulting: jump distance +1.5 m.',source:wiki('Bonespike_Boots')}],
  ['MAG_BarbMonk_Cloth_Hat_A_1_Late',{slot:/^Helmet$/,initiative:1,spellDC:1,source:wiki('Fistbreaker_Helm')}],
  ['UNI_MassHealRing',{slot:/^Ring/,note:'Blessed Mercy: healed creatures gain +1d4 to attacks and saves for 2 turns; does not stack with Bless.',source:wiki('The_Whispering_Promise')}],
  ['UND_SocietyOfBrilliance_MagicMissileNecklace',{slot:/^Amulet$/,note:'Psychic Missiles: Magic Missile fires one additional dart.',source:wiki('Psychic_Spark')}],
