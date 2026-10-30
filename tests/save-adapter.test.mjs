@@ -55,12 +55,12 @@ test('real report imports race, HP, abilities, feats and inventory with derived 
  assert.equal(sheet.story,'');assert.equal(sheet.notes,'');
  assert.equal(sheet.slots[3],'2 / 3');assert.equal(sheet.slots[4],'1 / 1');
 });
-test('shared camp storage is separate from a character’s carried inventory',()=>{
+test('unassigned shared camp storage is excluded from individual sheets',()=>{
  const r=structuredClone(report);
  r.camp_chest=[{stats:'UNI_LOOT_AdamantineForge_SplintMold',name:'Splint Mould (Heavy)',count:1},{stats:'UNI_LOOT_AdamantineForge_LongswordMold',name:'Longsword Mould',count:1}];
  const sheet=adaptCharacter(r,0,blank()).sheet;
- assert.match(sheet.campChest,/Longsword Mould/);
- assert.match(sheet.campChest,/Splint Mould/);
+ assert.equal(sheet.campChest,'');
+ assert.equal(sheet.campChestOwner,'');
  assert.doesNotMatch(sheet.equipment,/Splint Mould|Longsword Mould/);
 });
 test('a named Traveller’s Chest belongs on its owner’s sheet',()=>{
@@ -642,4 +642,19 @@ test('Crushing gloves add unarmed bonuses and combine with the active manifestat
  assert.equal(adaptCharacter(r,0,blank()).sheet.attacks,'Unarmed strike: +9 to hit, 1d6 +6 bludgeoning + 1d4 +3 psychic');
  c.carried=c.equipped;c.equipped=[];
  assert.equal(adaptCharacter(r,0,blank()).sheet.attacks,'Unarmed strike: +7 to hit, 1d6 +4 bludgeoning + 1d4 +3 psychic');
+});
+
+test('another character’s assigned chest never falls back to combined party storage',()=>{
+ const r=structuredClone(report);
+ r.camp_chest=[{name:'Shared gold',count:100}];
+ r.camp_chests=[{owner:'Different character',items:[{name:'Private item',count:1}]},{owner:null,items:[{name:'Unassigned item',count:1}]}];
+ const sheet=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(sheet.campChest,'');assert.equal(sheet.campChestOwner,'');
+});
+test('old backups with shared storage do not render a companion chest page',()=>{
+ const body=source.match(/function campStoragePanel\(\)\{([\s\S]*?)\n\}\nfunction stat/)[1];
+ const render=Function('state','esc',body);
+ assert.equal(render({campChest:'Shared loot',campChestOwner:''},String),'');
+ assert.match(render({campChest:'Owned loot',campChestOwner:'Owner'},String),/Owner’s Traveller’s Chest/);
+ assert.equal(render({campChest:'',campChestOwner:'Owner'},String),'');
 });
