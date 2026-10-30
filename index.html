@@ -125,6 +125,8 @@ function illithidPanel(){
  return `<section class="box illithid-panel"><h2>Illithid powers</h2><p class="legend">${powers.length?`${powers.length} purchased ${powers.length===1?'power':'powers'}`:'No purchased powers recovered'}</p>${powers.length?`<ul>${powers.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>`:''}</section>`;
 }
 function campStoragePanel(){
+ // Older backups may contain shared storage without an assigned owner.
+ if(!state.campChestOwner)return '';
  const lines=String(state.campChest||'').split('\n').filter(Boolean);
  if(!lines.length)return '';
  const perColumn=Math.ceil(lines.length/3);

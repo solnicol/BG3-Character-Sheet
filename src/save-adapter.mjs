@@ -297,7 +297,7 @@ export function adaptCharacter(report,index,template){
  out.equipment=equipment.join('\n\n');
  const ownChest=report.camp_chests?.find(chest=>chest.owner===c.name);
  out.campChestOwner=ownChest?c.name:'';
- out.campChest=(ownChest?.items||report.camp_chest||[]).slice().sort((a,b)=>String(a.name||a.stats).localeCompare(String(b.name||b.stats),'en')).map(itemLine).join('\n');
+ out.campChest=(ownChest?.items||[]).slice().sort((a,b)=>String(a.name||a.stats).localeCompare(String(b.name||b.stats),'en')).map(itemLine).join('\n');
  const modifier=n=>Number.isInteger(n)?Math.floor((n-10)/2):null;
  // Martial Arts scales with Monk levels, not total character level.
  // Versatile weapons qualify even when held in both hands; inherently
