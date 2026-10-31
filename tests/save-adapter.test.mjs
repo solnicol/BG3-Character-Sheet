@@ -658,3 +658,31 @@ test('old backups with shared storage do not render a companion chest page',()=>
  assert.match(render({campChest:'Owned loot',campChestOwner:'Owner'},String),/Owner’s Traveller’s Chest/);
  assert.equal(render({campChest:'',campChestOwner:'Owner'},String),'');
 });
+
+test('equipment availability does not mark the same class spell prepared',()=>{
+ const r=structuredClone(report);
+ r.characters[0].spells=[
+  {id:'Target_FeignDeath',name:'Feign Death',category:'spell',level:3,source:null,prepared:false},
+  {id:'Target_FeignDeath_4',name:'Feign Death',category:'spell',level:3,source:null,prepared:false},
+  {id:'Target_TWN_FeignDeath',name:'Feign Death',category:'spell',level:3,source:3,prepared:true},
+  {id:'ItemUpcast',name:'Feign Death',category:'spell',level:3,source:3,prepared:true}
+ ];
+ assert.equal(adaptCharacter(r,0,blank()).sheet.spells,
+  'Level 3: Feign Death [not prepared]\nLevel 3: Feign Death — Equipment [available]');
+ r.characters[0].spells[0].prepared=true;r.characters[0].spells[0].source=0;
+ assert.match(adaptCharacter(r,0,blank()).sheet.spells,/Feign Death \[prepared\]/);
+});
+
+test('racial and weapon grants and cantrips use availability rather than preparation',()=>{
+ const r=structuredClone(report);
+ r.characters[0].spells=[
+  {id:'Race',name:'Light',category:'spell',level:0,source:2,prepared:true},
+  {id:'Class',name:'Light',category:'spell',level:0,source:0,prepared:true},
+  {id:'Weapon',name:'Fireball',category:'spell',level:3,source:7,prepared:true}
+ ];
+ const s=adaptCharacter(r,0,blank()).sheet.spells;
+ assert.match(s,/Light \[available\]/);
+ assert.match(s,/Light — Racial \[available\]/);
+ assert.match(s,/Fireball — Weapon \[available\]/);
+ assert.doesNotMatch(s,/\[prepared\]/);
+});
