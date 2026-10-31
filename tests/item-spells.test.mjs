@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import {adaptCharacter} from '../src/save-adapter.mjs';
 const html=readFileSync(new URL('../index.html',import.meta.url),'utf8');
 const blank=Function('return ('+html.match(/const blank=\(\)=>\((.+)\);/)[1]+')');
-test('item spells and item actions are separated without duplicate names',()=>{
+test('item spells retain their source while item actions stay in features',()=>{
  const grant=(id,name,level)=>({id,name,level,source:3,category:'spell',prepared:true});
  const c={name:'Monk',level:4,class_levels:[{name:'Monk',level:4}],spells:[
   grant('Target_UND_MonkAmulet_Ability','Shatter',2),
@@ -14,7 +14,7 @@ test('item spells and item actions are separated without duplicate names',()=>{
   {...grant('Target_Shatter','Shatter',2),source:0,prepared:false},
  ]};
  const s=adaptCharacter({characters:[c]},0,blank()).sheet;
- assert.equal(s.spells,'Level 2: Shatter [prepared]');
+ assert.equal(s.spells,'Level 2: Shatter [not prepared]\nLevel 2: Shatter — Equipment [available]');
  assert.match(s.features,/Ki Restoration/);assert.match(s.features,/Talk to the Sentient Amulet/);
 });
 // Opt in with the user's private binary; never commit the save to the repo.

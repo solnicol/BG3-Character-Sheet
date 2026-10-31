@@ -388,7 +388,8 @@ export function adaptCharacter(report,index,template){
  out.illithidPowers=[...new Set(purchased)].join('\n');
  const combatActions=/^(Action Surge|Flourish|Menacing Attack(?: \((?:Melee|Ranged)\))?|Piercing Shot|Piercing Strike|Second Wind|Sweeping Attack|Weakening Strike|Astral Knowledge|Fey Presence|Radiance of the Dawn|Turn Undead|Ki Restoration|Talk to the Sentient Amulet)$/i;
  // A spell can be present once for its class list, once for its subclass and
- // again in the prepared list. Merge those records before printing.
+ // again in the prepared list. Merge within a source, never across equipment
+ // and class versions: availability from an item is not class preparation.
  // A spell the game data cannot name is a technical container or a mod's own
  // entry, never something the in-game spellbook shows. Printing its raw id
  // puts 'Target_Smite_Branding_Container_3' on a printed sheet, so leave it
@@ -398,15 +399,19 @@ export function adaptCharacter(report,index,template){
  if(unnamedSpells)warnings.push(unnamedSpells+' spell '+(unnamedSpells===1?'entry has':'entries have')+' no name in the game data, so '+(unnamedSpells===1?'it is':'they are')+' not listed. Mod-added spells appear this way.');
  const uniqueSpells=new Map();
  for(const s of spells) if(s.source!==22&&s.category==='spell'&&s.name&&!combatActions.test(String(s.name))){
-   const key=String(s.name||s.id||'').trim().toLowerCase();
+   const origin=({2:'Racial',3:'Equipment',7:'Weapon'})[s.source]||'';
+   const key=String(s.name||s.id||'').trim().toLowerCase()+'|'+origin;
    const prev=uniqueSpells.get(key);
-   if(!prev || (s.prepared===true && prev.prepared!==true)) uniqueSpells.set(key,{...prev,...s,prepared:s.prepared===true||prev?.prepared===true});
+   if(!prev || (s.prepared===true && prev.prepared!==true)) uniqueSpells.set(key,{...prev,...s,origin,prepared:s.prepared});
  }
  const orderedSpells=[...uniqueSpells.values()].sort((a,b)=>{
    const la=Number.isInteger(a.level)?a.level:99, lb=Number.isInteger(b.level)?b.level:99;
-   return la-lb || String(a.name||a.id).localeCompare(String(b.name||b.id),'en',{sensitivity:'base'});
+   return la-lb || String(a.name||a.id).localeCompare(String(b.name||b.id),'en',{sensitivity:'base'}) || a.origin.localeCompare(b.origin);
  });
- out.spells=orderedSpells.map(s=>`${s.level===0?'Cantrip':s.level?'Level '+s.level:'Spell'}: ${s.name||s.id}${s.prepared===true?' [prepared]':s.prepared===false?' [not prepared]':''}`).join('\n');
+ out.spells=orderedSpells.map(s=>{
+   const status=s.prepared===true?(s.origin||s.level===0?'available':'prepared'):s.prepared===false?(s.origin?'unavailable':'not prepared'):'';
+   return `${s.level===0?'Cantrip':s.level?'Level '+s.level:'Spell'}: ${s.name||s.id}${s.origin?' — '+s.origin:''}${status?' ['+status+']':''}`;
+ }).join('\n');
  const other=[...spells.filter(s=>s.source!==22&&s.category!=='spell'&&s.category!=='basic-action'&&s.category!=='sub-spell'),...spells.filter(s=>s.source!==22&&s.category==='spell'&&combatActions.test(String(s.name||'')))];
  const reactions=(c.reactions||[]).filter(n=>!purchased.includes(n));
  out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',reactions.length?'\n\nReactions\n'+reactions.join('\n'):''].join('');
