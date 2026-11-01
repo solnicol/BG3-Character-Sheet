@@ -3,6 +3,9 @@
 // save: do not add an item's Strength/Charisma/temporary-HP effects again.
 const wiki=page=>'https://bg3.wiki/wiki/'+page;
 export const ITEM_EFFECTS=new Map([
+ ['MAG_EndGame_HalfPlate',{slot:/^(Breast|Body)$/,saveAll:2,source:wiki('Armour_of_Agility')}],
+ ['MAG_PHB_Sentinel_Shield',{slot:/Offhand|Shield/,shieldAC:2,initiative:3,note:'Heightened Awareness: advantage on Perception checks. Shield Blow reaction.',source:wiki('Sentinel_Shield')}],
+ ['MAG_DeadShot_Longbow',{slot:/^Ranged Main Weapon$/,note:'Improved Critical: critical-hit threshold reduced by 1, including attacks with other weapons.',source:wiki('The_Dead_Shot')}],
  ['MAG_Barbarian_BoneSpike_Shoes',{slot:/^Boots$/,note:'Evasive Instinct: +1 AC and saving throws while unarmoured and without a shield. Refined Vaulting: jump distance +1.5 m.',source:wiki('Bonespike_Boots')}],
  ['MAG_BarbMonk_Cloth_Hat_A_1_Late',{slot:/^Helmet$/,initiative:1,spellDC:1,source:wiki('Fistbreaker_Helm')}],
  ['UNI_MassHealRing',{slot:/^Ring/,note:'Blessed Mercy: healed creatures gain +1d4 to attacks and saves for 2 turns; does not stack with Bless.',source:wiki('The_Whispering_Promise')}],

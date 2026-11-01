@@ -34,6 +34,9 @@ const QUARTERSTAFF=/Quaterstaff|\bStaff/i;
 // modifier the weapon adds to damage on top of its own, with `extraMin` as the
 // floor the weapon guarantees.
 export const NAMED_WEAPONS=new Map([
+ // https://bg3.wiki/wiki/The_Dead_Shot: Keen Attack adds proficiency even
+ // without longbow proficiency, except when the attack has disadvantage.
+ ['MAG_DeadShot_Longbow',{name:'The Dead Shot',base:'Longbow',enhancement:2,keenAttack:true}],
  // https://bg3.wiki/wiki/Blade_of_Oppressed_Souls
  ['MAG_Illithid_MindOverload_Weapon_Longsword',{name:'Blade of Oppressed Souls',base:'Longsword',enhancement:1,bonusDamage:{die:'1d4',type:'psychic'}}],
  // https://bg3.wiki/wiki/Drakethroat_Glaive
@@ -127,6 +130,6 @@ export function weaponProperties(item) {
  if(!row)return null;
  return {name:row[0],die:row[1],damage:named?.damage??row[2],ability:named?.ability??row[3],group:row[4],
   enhancement:named?named.enhancement:Number((item.name||'').match(/\+(\d+)\b/)?.[1]||0),
-  extra:named?.extra??null,extraMin:named?.extraMin??0,bonusDamage:named?.bonusDamage??null,
+  keenAttack:named?.keenAttack??false,extra:named?.extra??null,extraMin:named?.extraMin??0,bonusDamage:named?.bonusDamage??null,
   spellAttackBonus:named?.spellAttackBonus??0,spellDcBonus:named?.spellDcBonus??0,rangedSpellAttackBonus:named?.rangedSpellAttackBonus??0};
 }

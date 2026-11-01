@@ -84,3 +84,16 @@ test('unarmoured defensive equipment stacks with Mage Armour, with conditional A
  const armour=make({...c,equipped:[...c.equipped.filter(i=>i.slot!=='Breast'),{...item('ARM_Leather_Body','Breast'),name:'Leather Armour'}]});assert.equal(armour.ac,14);assert.ok(Object.values(armour.saveBonuses).every(n=>n===0));
  const noBoots=make({...c,equipped:c.equipped.filter(i=>i.slot!=='Boots'),carried:[item('MAG_Barbarian_BoneSpike_Shoes','Boots')]});assert.equal(noBoots.ac,18);
 });
+test('Agility armour, Sentinel Shield and Dead Shot use exact rules, not name enhancements',()=>{
+ const equipped=[item('MAG_EndGame_HalfPlate','Breast'),item('MAG_PHB_Sentinel_Shield','Melee Offhand Weapon'),item('MAG_DeadShot_Longbow','Ranged Main Weapon')];
+ const c={level:10,class_levels:[{name:'Fighter',level:10}],proficiency_bonus:4,selected_passives:['FightingStyle_Archery'],equipped};
+ const result=adaptCharacter({characters:[{name:'Test',abilities:{str:10,dex:20,con:16,int:8,wis:14,cha:8},equipment_proficiencies:['Martial Weapons'],...c}]},0,blank());
+ assert.equal(result.sheet.ac,24);assert.equal(result.sheet.initiative,8);
+ assert.ok(Object.values(result.sheet.saveBonuses).every(n=>n===2));
+ assert.match(result.sheet.attacks,/\+17 to hit, 1d8 \+7 piercing/);
+ assert.match(result.sheet.attacks,/subtract 4 from attack bonus with disadvantage/);
+ assert.doesNotMatch(result.warnings.join('\n'),/understated|enhancement/);
+ const untrained=make({proficiency_bonus:4,equipped:[equipped[2]],equipment_proficiencies:[]});
+ assert.match(untrained.attacks,/\+11 to hit/);
+ const carried=make({carried:equipped});assert.equal(carried.ac,15);assert.equal(carried.initiative,5);assert.ok(Object.values(carried.saveBonuses).every(n=>n===0));
+});
