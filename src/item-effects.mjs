@@ -3,6 +3,11 @@
 // save: do not add an item's Strength/Charisma/temporary-HP effects again.
 const wiki=page=>'https://bg3.wiki/wiki/'+page;
 export const ITEM_EFFECTS=new Map([
+ ['LOW_Elfsong_EmperorSword_LongSword',{slot:/^Melee (Main|Offhand) Weapon$/,note:'Magical Durability: +2 to saving throws against spells. Shapeshifter Slayer: +1d4 weapon damage against shapeshifters or polymorphed creatures; also adds +1d4 to weapon and spell attack rolls against them (documented game behaviour).',source:wiki('Sword_of_the_Emperor')}],
+ // Ability scores are final saved values, not base values. Describe this
+ // equipped benefit without adding it again or clamping permanent bonuses.
+ ['MAG_GleamingSorcery_Hat',{slot:/^Helmet$/,note:'Birthright: +2 Charisma, up to 22; included in the saved ability score. Can stack with the Mirror of Loss bonus.',source:wiki('Birthright')}],
+ ['MAG_Thunder_ReverberationOnRangeSpellDamage_Amulet',{slot:/^Amulet$/,note:'Crackling Resonance: dealing damage with a ranged spell attack inflicts 2 turns of Reverberation on the target.',source:wiki('Spineshudder_Amulet')}],
  ['MAG_EndGame_HalfPlate',{slot:/^(Breast|Body)$/,saveAll:2,source:wiki('Armour_of_Agility')}],
  ['MAG_PHB_Sentinel_Shield',{slot:/Offhand|Shield/,shieldAC:2,initiative:3,note:'Heightened Awareness: advantage on Perception checks. Shield Blow reaction.',source:wiki('Sentinel_Shield')}],
  ['MAG_DeadShot_Longbow',{slot:/^Ranged Main Weapon$/,note:'Improved Critical: critical-hit threshold reduced by 1, including attacks with other weapons.',source:wiki('The_Dead_Shot')}],

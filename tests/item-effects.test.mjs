@@ -97,3 +97,27 @@ test('Agility armour, Sentinel Shield and Dead Shot use exact rules, not name en
  assert.match(untrained.attacks,/\+11 to hit/);
  const carried=make({carried:equipped});assert.equal(carried.ac,15);assert.equal(carried.initiative,5);assert.ok(Object.values(carried.saveBonuses).every(n=>n===0));
 });
+test('Sword of the Emperor has +2 enchantment and conditional effects, not unconditional save boosts',()=>{
+ const sword=item('LOW_Elfsong_EmperorSword_LongSword','Melee Main Weapon');
+ const c={abilities:{str:8,dex:14,con:16,int:8,wis:19,cha:10},proficiency_bonus:4,equipped:[sword,item('MAG_Ketheric_Shield','Melee Offhand Weapon')]};
+ const s=make(c);assert.match(s.attacks,/\+5 to hit, 1d8 \+1 slashing/);
+ assert.match(s.features,/\+2 to saving throws against spells/);assert.match(s.features,/shapeshifters or polymorphed/);
+ assert.ok(Object.values(s.saveBonuses).every(n=>n===0));
+ const twoHanded=make({...c,equipped:[sword]});assert.match(twoHanded.attacks,/1d10 \+1 slashing/);
+ const carried=make({...c,equipped:[],carried:[sword]});assert.doesNotMatch(carried.features,/Magical Durability/);
+});
+test('Birthright preserves final saved Charisma, and confers no effect while carried',()=>{
+ const hat=item('MAG_GleamingSorcery_Hat','Helmet');
+ for(const cha of [20,22,24]){
+  const s=make({abilities:{str:8,dex:16,con:14,int:8,wis:10,cha},equipped:[hat]});
+  assert.equal(s.abilities.cha,cha);assert.match(s.features,/Birthright: \+2 Charisma/);
+ }
+ const s=make({abilities:{str:8,dex:16,con:14,int:8,wis:10,cha:20},carried:[hat]});
+ assert.equal(s.abilities.cha,20);assert.doesNotMatch(s.features,/Birthright:/);
+});
+test('Spineshudder adds its ranged spell damage trigger only in the amulet slot',()=>{
+ const amulet=item('MAG_Thunder_ReverberationOnRangeSpellDamage_Amulet','Amulet');
+ assert.match(make({equipped:[amulet]}).features,/ranged spell attack inflicts 2 turns of Reverberation/);
+ assert.doesNotMatch(make({carried:[amulet]}).features,/Crackling Resonance/);
+ assert.doesNotMatch(make({equipped:[{...amulet,slot:'Ring 1'}]}).features,/Crackling Resonance/);
+});

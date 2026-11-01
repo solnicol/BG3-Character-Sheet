@@ -34,6 +34,9 @@ const QUARTERSTAFF=/Quaterstaff|\bStaff/i;
 // modifier the weapon adds to damage on top of its own, with `extraMin` as the
 // floor the weapon guarantees.
 export const NAMED_WEAPONS=new Map([
+ // https://bg3.wiki/wiki/Sword_of_the_Emperor: target-dependent riders
+ // belong in equipment notes, not an unconditional attack/damage total.
+ ['LOW_Elfsong_EmperorSword_LongSword',{name:'Sword of the Emperor',base:'Longsword',enhancement:2}],
  // https://bg3.wiki/wiki/The_Dead_Shot: Keen Attack adds proficiency even
  // without longbow proficiency, except when the attack has disadvantage.
  ['MAG_DeadShot_Longbow',{name:'The Dead Shot',base:'Longbow',enhancement:2,keenAttack:true}],
