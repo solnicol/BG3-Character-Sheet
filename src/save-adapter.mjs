@@ -85,6 +85,8 @@ const DEX_CAP={light:Infinity,medium:2,heavy:0};
 // Uncommon that gamedata.json records for this stats ID.
 // Reaper's Embrace: heavy, class 19, per https://bg3.wiki/wiki/Reaper%27s_Embrace.
 export const NAMED_ARMOUR=new Map([
+ // https://bg3.wiki/wiki/Armour_of_Agility: finished AC, full Dexterity.
+ ['MAG_EndGame_HalfPlate',{name:'Armour of Agility',type:'medium',ac:17,dexCap:Infinity}],
  // https://bg3.wiki/wiki/Dark_Justiciar_Half-Plate_(Very_Rare)
  ['UNI_DarkJusticiarArmor_HalfPlate',{name:'Dark Justiciar Half-Plate',type:'medium',ac:17}],
  // Distinct rare variant, not interchangeable with the quest reward.
@@ -336,7 +338,7 @@ export function adaptCharacter(report,index,template){
    const allIn=ranged&&proficient&&c.passive_toggles?.Sharpshooter_AllIn===true;
    // Marksmanship does not affect off-hand crossbows or melee weapons.
    const hatBonus=ranged&&!/Offhand/.test(i.slot||'')?marksmanship:0;
-   const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery+hatBonus+warmaster-(allIn?5:0);
+   const bonus=m===null||!proficiencies?null:m+(proficient?prof:0)+w.enhancement+archery+hatBonus+warmaster+(w.keenAttack?prof:0)-(allIn?5:0);
    const offhand=/Offhand/.test(i.slot||'');
    const damageAbility=offhand&&m>0&&!passives.has('FightingStyle_TwoWeaponFighting')?0:m;
    const twoHanded=!ranged&&!offhand&&['Quarterstaff','Spear','Longsword','Battleaxe','Warhammer','Trident'].includes(w.name)&&!equippedOrdered.some(x=>/Melee Offhand/.test(x.slot||''));
@@ -352,7 +354,7 @@ export function adaptCharacter(report,index,template){
    const bonusApplies=w.bonusDamage&&(!w.bonusDamage.race||w.bonusDamage.race===text(c.race));
    const rider=(bonusApplies?` + ${w.bonusDamage.die} ${w.bonusDamage.type}`:'')+(effectSum('acid')?` + ${effectSum('acid')} acid`:'');
    const darkveil=ranged&&wornItems.some(x=>x.stats==='MAG_Shadow_Blinding_Bow'&&/Ranged/.test(x.slot||''))&&(c.statuses||[]).some(x=>x.id==='MAG_SHADOW_OBSCURITY_ATTACK_BONUS');
-   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)}${darkveil?' +1d4':''} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}${rider}`;
+   return `${itemLabel(i)}: ${bonus===null?'?':sign(bonus)}${darkveil?' +1d4':''} to hit, ${die}${damageMod===null?' + ?':damageMod?' '+sign(damageMod):''} ${w.damage}${rider}${w.keenAttack?` (Keen Attack: subtract ${prof} from attack bonus with disadvantage)`:""}`;
  });
  if(monkLevel>0){
    const str=modifier(out.abilities.str),dex=modifier(out.abilities.dex);
