@@ -40,3 +40,7 @@ test('items confirmed against in-game AC raise no understated warning',()=>{
  // Bob: Spidersilk Armour with Dexterity 16 reads 15 in game.
  assert.equal(sheet({level:6,class_levels:[{name:'Warlock',level:6}],abilities:{str:8,dex:16,con:14,int:8,wis:10,cha:19},equipped:[{name:'Spidersilk Armour',stats:'GOB_DrowCommander_Leather_Armor',slot:'Breast'}]}).sheet.ac,15);
 });
+test('Blackguard\'s Plate is class 19 and Shield of the Undevout a plain +2, with no warning',()=>{
+ const r=sheet({class_levels:[{name:'Paladin',level:5}],equipped:[{name:"Blackguard's Plate",stats:'MAG_OB_Paladin_DeathKnight_Armor',slot:'Breast'},{name:'Shield of the Undevout',stats:'MAG_OB_Paladin_DeathKnight_Shield',slot:'Melee Offhand Weapon'}]});
+ assert.equal(r.sheet.ac,21);assert.ok(!r.warnings.some(w=>/understated/.test(w)));
+});
