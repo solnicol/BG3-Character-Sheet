@@ -155,6 +155,10 @@ export function adaptCharacter(report,index,template){
  // which is enough for every full caster; a multiclass character is left alone
  // rather than guessed at.
  const CASTING_ABILITY={Bard:'cha',Sorcerer:'cha',Warlock:'cha',Paladin:'cha',Cleric:'wis',Druid:'wis',Ranger:'wis',Wizard:'int'};
+ // Each casting class, with the class level its spellcasting starts at.
+ // Eldritch Knight and Arcane Trickster cast from their subclass.
+ const castingOf=x=>x.subclass==='Eldritch Knight'||x.subclass==='Arcane Trickster'?{ability:'int',from:3}
+  :CASTING_ABILITY[x.name]?{ability:CASTING_ABILITY[x.name],from:['Paladin','Ranger'].includes(x.name)?2:1}:null;
  const spellAbility=text(c.spellcasting_ability)
   ||(out.classes.length===1?(CASTING_ABILITY[out.classes[0].name]??''):'');
  const race=RACES[c.race];[out.race,out.subrace]=race||['Not recovered',''];
@@ -169,6 +173,9 @@ export function adaptCharacter(report,index,template){
  // progress within the current level instead. Keep the save's number and let
  // the sheet derive the in-level figures from it.
  out.xp=integer(c.xp,0,10000000)?c.xp:'';
+ // The save keeps an experience total only for the active party: a camp
+ // companion or hireling has none to read, so its box stays blank, not zero.
+ if(out.xp===''&&c.xp==null&&c.at_camp)warnings.push('Experience is not stored for characters outside the active party, so it is left blank.');
  const xpLevel=out.classes.reduce((n,x)=>n+x.level,0),xpState=out.xp===''?undefined:xpProgress(out.xp,xpLevel);
  if(xpState===null)warnings.push('Experience total '+out.xp+' is below the expected range for this level, so progress to the next level is not shown.');
  else if(xpState?.levelUp)warnings.push('Level up available: '+out.xp+' experience reaches level '+xpState.reachable+', but it has not been taken in game yet, so this sheet shows level '+xpLevel+'.');
@@ -415,7 +422,9 @@ export function adaptCharacter(report,index,template){
    return `${s.level===0?'Cantrip':s.level?'Level '+s.level:'Spell'}: ${s.name||s.id}${s.origin?' — '+s.origin:''}${status?' ['+status+']':''}`;
  }).join('\n');
  const other=[...spells.filter(s=>s.source!==22&&s.category!=='spell'&&s.category!=='basic-action'&&s.category!=='sub-spell'),...spells.filter(s=>s.source!==22&&s.category==='spell'&&combatActions.test(String(s.name||'')))];
- const reactions=(c.reactions||[]).filter(n=>!purchased.includes(n));
+ // The save can hold one reaction several times over (one per granting
+ // source); the sheet lists each once, as Other abilities already does.
+ const reactions=[...new Set((c.reactions||[]).filter(n=>!purchased.includes(n)))];
  out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',reactions.length?'\n\nReactions\n'+reactions.join('\n'):''].join('');
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
@@ -429,6 +438,16 @@ export function adaptCharacter(report,index,template){
  // Conditional spell-attack bonuses must not inflate melee spells or save DC.
  const rangedSpellBonus=attackItems.reduce((sum,i)=>sum+weaponProperties(i).rangedSpellAttackBonus,0);
  if(rangedSpellBonus)out.features+=(out.features?'\n\n':'')+`Ranged spell attacks: +${rangedSpellBonus} in addition to the spell attack bonus shown.`;
+ // A multiclass caster casts each class's spells with that class's own
+ // ability, so one sheet-wide figure would be wrong for some of them. The
+ // sheet leaves its single field blank and gives each class its exact pair.
+ const ABILITY_NAMES={str:'Strength',dex:'Dexterity',con:'Constitution',int:'Intelligence',wis:'Wisdom',cha:'Charisma'};
+ const casters=out.classes.map(x=>({x,cast:castingOf(x)})).filter(({x,cast})=>cast&&x.level>=cast.from);
+ if(!spellAbility&&new Set(casters.map(({cast})=>cast.ability)).size>1){
+   const lines=casters.map(({x,cast})=>{const m=modifier(out.abilities[cast.ability]);
+     return `${x.name} (${ABILITY_NAMES[cast.ability]}): `+(m===null?'spell save DC ?, spell attack ?':`spell save DC ${8+prof+m+out.spellDcBonus}, spell attack ${m+prof+out.spellAttackBonus>=0?'+':''}${m+prof+out.spellAttackBonus}`);});
+   out.features+=(out.features?'\n\n':'')+'Spellcasting by class\n'+lines.join('\n');
+ }
  out.conditions=[...activeConditions(c.statuses),c.concentration?'Concentrating: '+(c.concentration.name||c.concentration.id):''].filter(Boolean).join('\n');
  if(Object.hasOwn(c.passive_toggles||{},'Sharpshooter_AllIn'))out.conditions+=(out.conditions?'\n':'')+'Sharpshooter: All In '+(c.passive_toggles.Sharpshooter_AllIn?'ON (−5 ranged attack, +10 damage)':'OFF');
  if(c.spells_note)warnings.push('Spellbook: '+c.spells_note+'.');

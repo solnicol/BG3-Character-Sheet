@@ -686,3 +686,36 @@ test('racial and weapon grants and cantrips use availability rather than prepara
  assert.match(s,/Fireball — Weapon \[available\]/);
  assert.doesNotMatch(s,/\[prepared\]/);
 });
+test('a reaction the save lists several times appears once',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.reactions=['Opportunity Attack','Hellish Rebuke','Hellish Rebuke','Counterspell','Hellish Rebuke'];
+ const block=adaptCharacter(r,0,blank()).sheet.features.split('Reactions\n')[1].split('\n\n')[0];
+ assert.deepEqual(block.split('\n'),['Opportunity Attack','Hellish Rebuke','Counterspell']);
+});
+test('proficient saving throw dots keep their fill when printed without background graphics',()=>{
+ const rule=readFileSync(new URL('../index.html',import.meta.url),'utf8').match(/\.imported input\[type=checkbox\]\{[^}]*\}/)[0];
+ assert.match(rule,/(^|;|\{)print-color-adjust:exact/);assert.match(rule,/-webkit-print-color-adjust:exact/);
+});
+test('a multiclass caster gets each casting class its own spell DC and attack',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ // Circe: Bard 5 / Wizard 4 / Cleric 1 with Cha 16, Int 8, Wis 20.
+ c.level=10;c.proficiency_bonus=4;c.spellcasting_ability=null;c.equipped=[];
+ c.class_levels=[{name:'Bard',subclass:'LoreCollege',level:5},{name:'Wizard',subclass:'TransmutationSchool',level:4},{name:'Cleric',subclass:'LightDomain',level:1}];
+ c.abilities={str:8,dex:14,con:12,int:8,wis:20,cha:16};
+ const s=adaptCharacter(r,0,blank()).sheet;
+ assert.equal(s.spellAbility,'');
+ assert.match(s.features,/Spellcasting by class\nBard \(Charisma\): spell save DC 15, spell attack \+7\nWizard \(Intelligence\): spell save DC 11, spell attack \+3\nCleric \(Wisdom\): spell save DC 17, spell attack \+9/);
+});
+test('a multiclass whose casting classes share an ability, or a non-caster, gets no per-class block',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.level=10;c.spellcasting_ability=null;c.class_levels=[{name:'Fighter',subclass:'',level:5},{name:'Rogue',subclass:'',level:5}];
+ assert.doesNotMatch(adaptCharacter(r,0,blank()).sheet.features,/Spellcasting by class/);
+ c.class_levels=[{name:'Paladin',subclass:'',level:1},{name:'Warlock',subclass:'',level:9}];
+ assert.doesNotMatch(adaptCharacter(r,0,blank()).sheet.features,/Spellcasting by class/);
+});
+test('a camp companion with no stored experience is explained, not left silent',()=>{
+ const r=structuredClone(report),c=r.characters[0];delete c.xp;c.at_camp=true;
+ assert.match(adaptCharacter(r,0,blank()).sheet.importSummary,/Experience is not stored for characters outside the active party/);
+ c.at_camp=false;
+ assert.doesNotMatch(adaptCharacter(r,0,blank()).sheet.importSummary,/Experience is not stored/);
+});

@@ -47,7 +47,18 @@ holding 3542 cumulative XP is reported in game as 842 earned with 2958 remaining
 fixes level 4 at 2700 and level 5 at 6500, and the series ends at exactly 100000. A total at or
 past the next threshold is experience the player has banked without levelling up: the
 sheet marks the level up as ready and the import names the level it reaches. Only a total
-below its level's floor withholds the remaining figure rather than guessing. `src/save-adapter.mjs` owns the table and a test keeps `index.html` in step.
+below its level's floor withholds the remaining figure rather than guessing. `src/save-adapter.mjs` owns the table and a test keeps `index.html` in step. The save stores an experience total only for the active party, so a camp companion
+or hireling shows no experience and the import says why rather than showing zero.
+
+Spellcasting: a multiclass character casts each class's spells with that class's own ability,
+so the sheet's single spell DC and attack fields stay blank for one whose casting classes use
+different abilities. Features then list each casting class's exact spell save DC and spell
+attack instead. Paladin and Ranger casting counts from class level 2, Eldritch Knight and
+Arcane Trickster from level 3.
+
+Hirelings: race is fixed per hireling template and survives a class respec, so it is keyed on
+the template, sourced from each hireling's bg3.wiki page. Hirelings not yet in that table read
+as an unrecognised race.
 
 [Favourable Beginnings](https://bg3.wiki/wiki/Favourable_Beginnings) is conditional on the first attack against a target. It is not silently added to every attack. Full active-status and target-dependent totals are not yet reconstructed. The sheet's attack numbers are supported baseline totals plus recovered toggles, not a promise to match every in-game target tooltip.
 

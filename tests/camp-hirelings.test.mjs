@@ -39,3 +39,11 @@ test('an active renamed hireling retains her name while another hireling is at c
  assert.ok(circe[0].equipped.some(i=>i.stats==='SCL_SpidersLyre'));
  assert.ok(!athena[0].equipped.some(i=>i.stats==='SCL_SpidersLyre'));
 });
+test('hireling races are fixed per template, including after a class respec',async()=>{
+ const {build}=await import('esbuild');
+ const out=await build({entryPoints:['src/camp-hirelings.ts'],bundle:true,platform:'node',format:'esm',write:false});
+ const {HIRELING_RACES}=await import('data:text/javascript;base64,'+Buffer.from(out.outputFiles[0].text).toString('base64'));
+ // Varanna Sunblossom: a Wood Half-Elf hireling, respecced to Paladin in a real save.
+ assert.equal(HIRELING_RACES['d61d12ad-dc80-4805-8c6e-fb876da196cd'],'HalfElf_Wood');
+ assert.equal(HIRELING_RACES['0b149cab-4438-467a-953d-8697535b953d'],'Githyanki');
+});
