@@ -1,11 +1,14 @@
 import {parseLsmfStatsEntities,parseLsmfClasses} from '../vendor/bg3-savefile-parser/ts/parser/src/lsmf';
 import {recoverPlayerNames} from './multiplayer';
 // Fixed hireling races, keyed by character template, not custom name or class.
-// https://bg3.wiki/wiki/Sina%27zith and https://bg3.wiki/wiki/Brinna_Brightsong
-const races:Record<string,string>={
+// https://bg3.wiki/wiki/Sina%27zith, https://bg3.wiki/wiki/Brinna_Brightsong and
+// https://bg3.wiki/wiki/Varanna_Sunblossom (race is fixed even after a respec).
+export const HIRELING_RACES:Record<string,string>={
  '0b149cab-4438-467a-953d-8697535b953d':'Githyanki',
  '4d3c9cb3-ca34-46ba-9c81-44081270bfde':'Halfling_Lightfoot',
+ 'd61d12ad-dc80-4805-8c6e-fb876da196cd':'HalfElf_Wood',
 };
+const races=HIRELING_RACES;
 // The twelve persistent hireling templates, observed in Character records in
 // SYS_Hirelings. PreviousLevel is travel history: it changes on region travel.
 const hirelingTemplates=new Set([
