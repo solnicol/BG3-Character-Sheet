@@ -98,6 +98,8 @@ export const NAMED_ARMOUR=new Map([
  ['ARM_Bard',{name:'Simple Jerkin',type:'light',ac:11}],
  ['MAG_Radiant_RadiatingOrb_Armor',{name:'Luminous Armour',type:'medium',ac:15}],
  ['MOO_Ketheric_Armor',{name:"Reaper's Embrace",type:'heavy',ac:19}],
+ // https://bg3.wiki/wiki/Blackguard%27s_Plate: heavy, class 19, one above plain plate.
+ ['MAG_OB_Paladin_DeathKnight_Armor',{name:"Blackguard's Plate",type:'heavy',ac:19}],
 ]);
 // Body-slot clothing is not armour. A robe, a garb or a set of camp clothes
 // leaves the wearer unarmoured, which scores as base 10 and the whole
@@ -116,6 +118,8 @@ const PLAIN_ENHANCEMENT=new Set([
  'GOB_DrowCommander_Leather_Armor',// Spidersilk Armour
  'UNI_Leather_Halsin',             // Druid Leather Armour
  'UNI_Leather_Jaheira',            // Leather Armour
+ // https://bg3.wiki/wiki/Shield_of_the_Undevout lists the plain shield's +2.
+ 'MAG_OB_Paladin_DeathKnight_Shield',// Shield of the Undevout
 ]);
 export const enhancementHidden=i=>Boolean(i?.stats)&&!/^ARM_/.test(i.stats)&&!NAMED_ARMOUR.has(i.stats)&&!PLAIN_ENHANCEMENT.has(i.stats)&&!ITEM_EFFECTS.get(i.stats)?.shieldAC&&!/\+\d/.test(i.name||'');
 export const CLOTHING=/Robe|Cloth|Garb|Outfit|Clothes|Vanity|Underwear/i;

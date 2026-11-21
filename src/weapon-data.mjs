@@ -105,6 +105,11 @@ export const NAMED_WEAPONS=new Map([
  // the one gated rider the sheet can settle.
  ['MAG_Githborn_Mindcrusher_Greatsword',{name:'Soulbreaker Greatsword',enhancement:1,bonusDamage:{die:'1d4',type:'psychic',race:'Githyanki'}}],
  ['MAG_SHA_SeluneBlessing_Spear',{name:"Selûne's Spear of Night",enhancement:3}],
+ // https://bg3.wiki/wiki/Shar%27s_Spear_of_Evening: +3. Shar's Blessing adds
+ // 1d6 only against an obscured target, so it stays off the resting figure.
+ ['MAG_SHA_SharBlessing_Spear',{name:"Shar's Spear of Evening",enhancement:3}],
+ // https://bg3.wiki/wiki/Belm: a +2 scimitar.
+ ['MAG_PHB_OfSpeed_Scimitar',{name:'Belm',enhancement:2}],
  // Both read 'Enchantment: None'.
  ['MAG_ChargedLightning_Quarterstaff',{name:'The Spellsparkler',enhancement:0}],
  ['DEN_TunnelStaff',{name:"Nature's Snare",base:'Quarterstaff',enhancement:0}],

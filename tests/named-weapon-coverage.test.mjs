@@ -42,3 +42,9 @@ test('Ambusher and Warmaster apply equipped bonuses without unconditional streak
  assert.equal(carried.initiative,3);assert.equal(carried.spellAttackBonus,0);assert.doesNotMatch(carried.features,/Sentinel Weapon|Heightened Manoeuvre/);
  assert.equal(sheet({equipped:[sword],initiative:9}).sheet.initiative,9);
 });
+test('Belm and Shar\'s Spear of Evening carry their wiki enhancements',()=>{
+ const belm={name:'Belm',stats:'MAG_PHB_OfSpeed_Scimitar',slot:'Melee Main Weapon'};
+ assert.equal(weaponProperties(belm).name,'Scimitar');assert.equal(weaponProperties(belm).enhancement,2);assert.equal(weaponEnhancementUnknown(belm),false);
+ const spear={name:"Shar's Spear of Evening",stats:'MAG_SHA_SharBlessing_Spear',slot:'Melee Main Weapon'};
+ assert.equal(weaponProperties(spear).name,'Spear');assert.equal(weaponProperties(spear).enhancement,3);assert.equal(weaponEnhancementUnknown(spear),false);
+});
