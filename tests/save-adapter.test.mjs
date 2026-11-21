@@ -686,3 +686,13 @@ test('racial and weapon grants and cantrips use availability rather than prepara
  assert.match(s,/Fireball — Weapon \[available\]/);
  assert.doesNotMatch(s,/\[prepared\]/);
 });
+test('a reaction the save lists several times appears once',()=>{
+ const r=structuredClone(report),c=r.characters[0];
+ c.reactions=['Opportunity Attack','Hellish Rebuke','Hellish Rebuke','Counterspell','Hellish Rebuke'];
+ const block=adaptCharacter(r,0,blank()).sheet.features.split('Reactions\n')[1].split('\n\n')[0];
+ assert.deepEqual(block.split('\n'),['Opportunity Attack','Hellish Rebuke','Counterspell']);
+});
+test('proficient saving throw dots keep their fill when printed without background graphics',()=>{
+ const rule=readFileSync(new URL('../index.html',import.meta.url),'utf8').match(/\.imported input\[type=checkbox\]\{[^}]*\}/)[0];
+ assert.match(rule,/(^|;|\{)print-color-adjust:exact/);assert.match(rule,/-webkit-print-color-adjust:exact/);
+});

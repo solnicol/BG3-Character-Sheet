@@ -415,7 +415,9 @@ export function adaptCharacter(report,index,template){
    return `${s.level===0?'Cantrip':s.level?'Level '+s.level:'Spell'}: ${s.name||s.id}${s.origin?' — '+s.origin:''}${status?' ['+status+']':''}`;
  }).join('\n');
  const other=[...spells.filter(s=>s.source!==22&&s.category!=='spell'&&s.category!=='basic-action'&&s.category!=='sub-spell'),...spells.filter(s=>s.source!==22&&s.category==='spell'&&combatActions.test(String(s.name||'')))];
- const reactions=(c.reactions||[]).filter(n=>!purchased.includes(n));
+ // The save can hold one reaction several times over (one per granting
+ // source); the sheet lists each once, as Other abilities already does.
+ const reactions=[...new Set((c.reactions||[]).filter(n=>!purchased.includes(n)))];
  out.features+=[other.length?'\n\nOther abilities\n'+[...new Set(other.map(s=>s.name||s.id))].join('\n'):'',reactions.length?'\n\nReactions\n'+reactions.join('\n'):''].join('');
  out.features=out.features.trim();
  const choices=[...passives].map(x=>title(x.replace('FightingStyle_','Fighting style: '))).filter(x=>!out.features.toLowerCase().replace(/[^a-z]/g,'').includes(x.toLowerCase().replace(/[^a-z]/g,'')));if(choices.length)out.features+='\n\nBuild choices\n'+choices.join('\n');
